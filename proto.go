@@ -202,12 +202,14 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 			}
 		}
 
+		msg := fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To)
+
 		switch mode {
 		case StandaloneMode:
 			pass.Report(analysis.Diagnostic{
 				Pos:     n.Pos(),
 				End:     n.End(),
-				Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
+				Message: msg,
 				SuggestedFixes: []analysis.SuggestedFix{
 					{
 						Message: fmt.Sprintf("%q should be replaced with %q", result.From, result.To),
@@ -225,7 +227,7 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 		case GolangciLintMode:
 			return &Issue{
 				Pos:     pass.Fset.Position(n.Pos()),
-				Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
+				Message: msg,
 				InlineFix: InlineFix{
 					StartCol:  pass.Fset.Position(n.Pos()).Column - 1,
 					Length:    len(result.From),
