@@ -33,16 +33,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Skip generated files.
 	var files []*ast.File
-filesLoop:
 	for _, f := range pass.Files {
-		for _, c := range f.Comments {
-			if strings.HasPrefix(c.Text(), "Code generated") {
-				continue filesLoop
-			}
-
+		if !isGeneratedFile(f) {
+			files = append(files, f)
 		}
-
-		files = append(files, f)
 	}
 
 	ins := inspector.New(files)
@@ -51,9 +45,18 @@ filesLoop:
 	return nil, nil
 }
 
+func isGeneratedFile(f *ast.File) bool {
+	for _, c := range f.Comments {
+		if strings.HasPrefix(c.Text(), "Code generated") {
+			return true
+		}
+	}
+
+	return false
+}
+
 func check(pass *analysis.Pass) func(ast.Node) {
 	skippedPos := map[token.Pos]struct{}{}
-
 	isAlreadyReplaced := map[string]map[int][2]int{} // map[filename][line][start, end]
 
 	return func(n ast.Node) {
@@ -87,9 +90,6 @@ func check(pass *analysis.Pass) func(ast.Node) {
 						skippedPos[ue.X.Pos()] = struct{}{}
 					}
 
-					// If the call is not on a proto message, skip it.
-					skippedPos[x.Pos()] = struct{}{}
-
 					return
 				}
 
@@ -97,8 +97,6 @@ func check(pass *analysis.Pass) func(ast.Node) {
 
 			default:
 				if !isProtoMessage(pass, x.Fun) {
-					// If the call is not on a proto message, skip it.
-					skippedPos[x.Pos()] = struct{}{}
 					return
 				}
 
@@ -128,16 +126,17 @@ func check(pass *analysis.Pass) func(ast.Node) {
 			return
 		}
 
-		if result.From() == result.To() {
-			return
-		}
-
+		// If existing in skippedPos, skip it.
 		if _, ok := skippedPos[n.Pos()]; ok {
 			return
 		}
-		// Skip if the expression is the same.
-		skippedPos[n.Pos()] = struct{}{}
 
+		// If from and to are the same, skip it.
+		if result.From == result.To {
+			return
+		}
+
+		// Calculate the position of the expression in the file and if it has already been replaced, skip it.
 		{
 			filePos := pass.Fset.Position(n.Pos())
 			fileEnd := pass.Fset.Position(n.End())
@@ -162,15 +161,15 @@ func check(pass *analysis.Pass) func(ast.Node) {
 		pass.Report(analysis.Diagnostic{
 			Pos:     n.Pos(),
 			End:     n.End(),
-			Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From(), result.To()),
+			Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
 			SuggestedFixes: []analysis.SuggestedFix{
 				{
-					Message: fmt.Sprintf("%q should be replaced with %q", result.From(), result.To()),
+					Message: fmt.Sprintf("%q should be replaced with %q", result.From, result.To),
 					TextEdits: []analysis.TextEdit{
 						{
 							Pos:     n.Pos(),
 							End:     n.End(),
-							NewText: []byte(result.To()),
+							NewText: []byte(result.To),
 						},
 					},
 				},
@@ -187,6 +186,7 @@ type Checker struct {
 	err  error
 }
 
+// NewChecker creates a new Checker instance.
 func NewChecker(pass *analysis.Pass) *Checker {
 	return &Checker{
 		info: pass.TypesInfo,
@@ -202,7 +202,10 @@ func (c *Checker) Result() (*CheckerResult, error) {
 		return nil, c.err
 	}
 
-	return c.result(), nil
+	return &CheckerResult{
+		From: c.from.String(),
+		To:   c.to.String(),
+	}, nil
 }
 
 func (c *Checker) Check(expr ast.Expr) {
@@ -280,24 +283,10 @@ func (c *Checker) writeFrom(s string) {
 	c.from.WriteString(s)
 }
 
-func (c *Checker) result() *CheckerResult {
-	return &CheckerResult{
-		from: c.from.String(),
-		to:   c.to.String(),
-	}
-}
-
+// CheckerResult contains source code (from) and suggested change (to)
 type CheckerResult struct {
-	from string
-	to   string
-}
-
-func (r CheckerResult) From() string {
-	return r.from
-}
-
-func (r CheckerResult) To() string {
-	return r.to
+	From string
+	To   string
 }
 
 const messageState = "google.golang.org/protobuf/internal/impl.MessageState"
