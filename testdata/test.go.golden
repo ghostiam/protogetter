@@ -1,0 +1,116 @@
+package testdata
+
+import (
+	"fmt"
+
+	"github.com/ghostiam/protogolint/testdata/proto"
+)
+
+type Test struct {
+	Embedded *proto.Embedded
+}
+
+func testInvalid(t *proto.Test) {
+	func(...interface{}) {}(t.GetB(), t.GetD()) // want "proto field read without getter:" "proto field read without getter:"
+	func(...interface{}) {}(t.GetB(), t.GetD()) // want "proto field read without getter:"
+	func(...interface{}) {}(t.GetB(), t.GetD()) // want "proto field read without getter:"
+
+	_ = t.GetD()                                                  // want "proto field read without getter:"
+	_ = t.GetF()                                                  // want "proto field read without getter:"
+	_ = t.GetI32()                                                // want "proto field read without getter:"
+	_ = t.GetI64()                                                // want "proto field read without getter:"
+	_ = t.GetU32()                                                // want "proto field read without getter:"
+	_ = t.GetU64()                                                // want "proto field read without getter:"
+	_ = t.GetT()                                                  // want "proto field read without getter:"
+	_ = t.GetB()                                                  // want "proto field read without getter:"
+	_ = t.GetS()                                                  // want "proto field read without getter:"
+	_ = t.GetEmbedded()                                           // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetS()                                    // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetS()                                    // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetEmbedded()                             // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetEmbedded()                             // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetEmbedded().GetS()                      // want "proto field read without getter:"
+	_ = t.GetEmbedded().GetEmbedded().GetS()                      // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()                                  // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0]                               // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetS()                        // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetS()                        // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()                 // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()                 // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()          // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()          // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want "proto field read without getter:"
+	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want "proto field read without getter:"
+
+	var many []*proto.Test
+	manyIndex := 42
+
+	_ = many[0].GetT()                             // want "proto field read without getter:"
+	_ = many[1].GetEmbedded().GetS()               // want "proto field read without getter:"
+	_ = many[2].GetEmbedded().GetS()               // want "proto field read without getter:"
+	_ = many[3].GetEmbedded().GetEmbedded().GetS() // want "proto field read without getter:"
+	_ = many[manyIndex].GetS()                     // want "proto field read without getter:"
+
+	test := many[0].GetEmbedded().GetS() == "" || t.GetEmbedded().CustomMethod() == nil || t.GetS() == "" || t.GetEmbedded() == nil // want "proto field read without getter:" "proto field read without getter:" "proto field read without getter:" "proto field read without getter:"
+	_ = test
+
+	other := proto.Other{}
+	_ = other.MyMethod(nil).GetS() // want "proto field read without getter:"
+}
+
+func testValid(t *proto.Test) {
+	func(...interface{}) {}(t.GetB(), t.GetD())
+
+	_, t.T = true, true
+	_, t.T, _ = true, true, false
+	_, _, t.T = true, true, false
+	t.T, _ = true, true
+	t.D = 2
+
+	fmt.Scanf("Test", &t.S, &t.B, &t.T)
+
+	t.D = 1.0
+	t.F = 1.0
+	t.I32 = 1
+	t.I64 = 1
+	t.U32 = 1
+	t.U64 = 1
+	t.T = true
+	t.B = []byte{1}
+	t.S = "1"
+	t.Embedded = &proto.Embedded{}
+	t.Embedded.S = "1"
+	t.GetEmbedded().S = "1"
+	t.Embedded.Embedded = &proto.Embedded{}
+	t.GetEmbedded().Embedded = &proto.Embedded{}
+	t.Embedded.Embedded.S = "1"
+	t.GetEmbedded().GetEmbedded().S = "1"
+	t.RepeatedEmbeddeds = []*proto.Embedded{{S: "1"}}
+
+	_ = t.GetD()
+	_ = t.GetF()
+	_ = t.GetI32()
+	_ = t.GetI64()
+	_ = t.GetU32()
+	_ = t.GetU64()
+	_ = t.GetT()
+	_ = t.GetB()
+	_ = t.GetS()
+	_ = t.GetEmbedded()
+	_ = t.GetEmbedded().GetS()
+	_ = t.GetEmbedded().GetEmbedded()
+	_ = t.GetEmbedded().GetEmbedded().GetS()
+	_ = t.GetRepeatedEmbeddeds()
+	_ = t.GetRepeatedEmbeddeds()[0]
+	_ = t.GetRepeatedEmbeddeds()[0].GetS()
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()
+
+	other := proto.Other{}
+	other.MyMethod(nil).CustomMethod()
+	other.MyMethod(nil).GetS()
+
+	var tt Test
+	_ = tt.Embedded.GetS()
+	_ = tt.Embedded.GetEmbedded().GetS()
+}

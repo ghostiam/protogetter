@@ -3,10 +3,14 @@
 #
 # Follow https://github.com/golang/go/issues/37054 for more details.
 #
+
+.PHONY: vendor
 vendor:
+	rm -rf src
 	go mod vendor
 	mv vendor src
 
+.PHONY: protoc
 protoc:
 	protoc -I proto \
 		--go_out proto \
