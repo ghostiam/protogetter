@@ -59,6 +59,13 @@ func testInvalid(t *proto.Test) {
 
 	ems := t.RepeatedEmbeddeds // want "proto field read without getter:"
 	_ = ems[len(ems)-1].S      // want "proto field read without getter:"
+
+	ch := make(chan string)
+	ch <- t.S // want "proto field read without getter:"
+
+	for _, v := range t.RepeatedEmbeddeds { // want "proto field read without getter:"
+		_ = v
+	}
 }
 
 func testValid(t *proto.Test) {
@@ -121,4 +128,7 @@ func testValid(t *proto.Test) {
 
 	ems := t.GetRepeatedEmbeddeds()
 	_ = ems[len(ems)-1].GetS()
+
+	ch := make(chan string)
+	ch <- t.GetS()
 }
