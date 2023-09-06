@@ -57,7 +57,7 @@ which simplifies the code and makes it more reliable.
 ## Installation
 
 ```bash
-go install github.com/ghostiam/protogolint@latest
+go install github.com/ghostiam/protogolint/cmd/protogolint@latest
 ```
 
 ## Usage
