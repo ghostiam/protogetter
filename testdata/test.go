@@ -69,6 +69,8 @@ func testValid(t *proto.Test) {
 	_, _, t.T = true, true, false
 	t.T, _ = true, true
 	t.D = 2
+	t.I32++
+	t.I32 += 2
 
 	fmt.Scanf("Test", &t.S, &t.B, &t.T)
 

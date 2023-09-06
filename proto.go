@@ -29,6 +29,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.AssignStmt)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.SelectorExpr)(nil),
+		(*ast.IncDecStmt)(nil),
 	}
 
 	// Skip generated files.
@@ -36,6 +37,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	for _, f := range pass.Files {
 		if !isGeneratedFile(f) {
 			files = append(files, f)
+
+			// ast.Print(pass.Fset, f)
 		}
 	}
 
@@ -75,6 +78,10 @@ func check(pass *analysis.Pass) func(ast.Node) {
 				skippedPos[lhs.Pos()] = struct{}{}
 			}
 
+		case *ast.IncDecStmt:
+			// Skip any increment/decrement to the field.
+			skippedPos[x.X.Pos()] = struct{}{}
+
 		case *ast.CallExpr:
 			switch f := x.Fun.(type) {
 			case *ast.SelectorExpr:
@@ -100,7 +107,7 @@ func check(pass *analysis.Pass) func(ast.Node) {
 					return
 				}
 
-				a.SetError(fmt.Errorf("CallExpr: not implemented for type: %s", reflect.TypeOf(f)))
+				a.SetError(fmt.Errorf("CallExpr: not implemented for type: %s (%s)", reflect.TypeOf(f), formatNode(n)))
 			}
 
 		case *ast.SelectorExpr:
@@ -110,6 +117,9 @@ func check(pass *analysis.Pass) func(ast.Node) {
 			}
 
 			a.Check(x)
+
+		default:
+			a.SetError(fmt.Errorf("not implemented for type: %s (%s)", reflect.TypeOf(x), formatNode(n)))
 		}
 
 		result, err := a.Result()
