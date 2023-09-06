@@ -265,9 +265,7 @@ func (c *Checker) Check(expr ast.Expr) {
 
 	case *ast.BinaryExpr:
 		c.Check(x.X)
-		c.write(" ")
 		c.write(x.Op.String())
-		c.write(" ")
 		c.Check(x.Y)
 
 	default:
