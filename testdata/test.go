@@ -56,6 +56,9 @@ func testInvalid(t *proto.Test) {
 
 	other := proto.Other{}
 	_ = other.MyMethod(nil).S // want "proto field read without getter:"
+
+	ems := t.RepeatedEmbeddeds // want "proto field read without getter:"
+	_ = ems[len(ems)-1].S      // want "proto field read without getter:"
 }
 
 func testValid(t *proto.Test) {
@@ -113,4 +116,7 @@ func testValid(t *proto.Test) {
 	var tt Test
 	_ = tt.Embedded.GetS()
 	_ = tt.Embedded.GetEmbedded().GetS()
+
+	ems := t.GetRepeatedEmbeddeds()
+	_ = ems[len(ems)-1].GetS()
 }

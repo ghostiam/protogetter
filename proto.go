@@ -253,6 +253,13 @@ func (c *Checker) Check(expr ast.Expr) {
 		c.Check(x.Index)
 		c.write("]")
 
+	case *ast.BinaryExpr:
+		c.Check(x.X)
+		c.write(" ")
+		c.write(x.Op.String())
+		c.write(" ")
+		c.Check(x.Y)
+
 	default:
 		c.err = fmt.Errorf("checker not implemented for type: %s", reflect.TypeOf(x))
 	}
