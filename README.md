@@ -37,6 +37,21 @@ if m.Foo != nil {
     }
 }
 ```
+
+or use zero values:
+
+```go
+// If one of the methods returns `nil` we will receive 0 instead of panic.
+v := m.GetFoo().GetBar().GetBaz().GetInt() 
+```
+
+instead of panic:
+
+```go
+// If at least one structure in the chains is not initialized, we will get a panic. 
+v := m.Foo.Bar.Baz.Int
+```
+
 which simplifies the code and makes it more reliable.
 
 ## Installation
