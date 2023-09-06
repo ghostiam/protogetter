@@ -17,14 +17,26 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "protogolint",
-	Doc:      "Reports direct reads from proto message fields when getters should be used",
-	Run:      run,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+type Mode int
+
+const (
+	StandaloneMode Mode = iota
+	GolangciLintMode
+)
+
+func NewAnalyzer() *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name: "protogolint",
+		Doc:  "Reports direct reads from proto message fields when getters should be used",
+		Run: func(pass *analysis.Pass) (any, error) {
+			Run(pass, StandaloneMode)
+			return nil, nil
+		},
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	}
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func Run(pass *analysis.Pass, mode Mode) []Issue {
 	nodeTypes := []ast.Node{
 		(*ast.AssignStmt)(nil),
 		(*ast.CallExpr)(nil),
@@ -43,9 +55,31 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	ins := inspector.New(files)
-	ins.Preorder(nodeTypes, check(pass))
+	checker := check(pass, mode)
 
-	return nil, nil
+	var issues []Issue
+
+	ins.Preorder(nodeTypes, func(node ast.Node) {
+		issue := checker(node)
+		if issue != nil {
+			issues = append(issues, *issue)
+		}
+	})
+
+	return issues
+}
+
+// Issue is used to integrate with golangci-lint's inline auto fix.
+type Issue struct {
+	Pos       token.Position
+	Message   string
+	InlineFix InlineFix
+}
+
+type InlineFix struct {
+	StartCol  int // zero-based
+	Length    int
+	NewString string
 }
 
 func isGeneratedFile(f *ast.File) bool {
@@ -58,15 +92,15 @@ func isGeneratedFile(f *ast.File) bool {
 	return false
 }
 
-func check(pass *analysis.Pass) func(ast.Node) {
+func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 	skippedPos := map[token.Pos]struct{}{}
 	isAlreadyReplaced := map[string]map[int][2]int{} // map[filename][line][start, end]
 
-	return func(n ast.Node) {
+	return func(n ast.Node) *Issue {
 		// fmt.Printf("\n>>> check: %s\n", formatNode(n))
 		if _, ok := skippedPos[n.Pos()]; ok {
 			// fmt.Printf(">>> ignored\n")
-			return
+			return nil
 		}
 
 		a := NewChecker(pass)
@@ -97,14 +131,14 @@ func check(pass *analysis.Pass) func(ast.Node) {
 						skippedPos[ue.X.Pos()] = struct{}{}
 					}
 
-					return
+					return nil
 				}
 
 				a.Check(x)
 
 			default:
 				if !isProtoMessage(pass, x.Fun) {
-					return
+					return nil
 				}
 
 				a.SetError(fmt.Errorf("CallExpr: not implemented for type: %s (%s)", reflect.TypeOf(f), formatNode(n)))
@@ -113,7 +147,7 @@ func check(pass *analysis.Pass) func(ast.Node) {
 		case *ast.SelectorExpr:
 			if !isProtoMessage(pass, x.X) {
 				// If the selector is not on a proto message, skip it.
-				return
+				return nil
 			}
 
 			a.Check(x)
@@ -133,17 +167,17 @@ func check(pass *analysis.Pass) func(ast.Node) {
 				Message: fmt.Sprintf("error: %v", err),
 			})
 
-			return
+			return nil
 		}
 
 		// If existing in skippedPos, skip it.
 		if _, ok := skippedPos[n.Pos()]; ok {
-			return
+			return nil
 		}
 
 		// If from and to are the same, skip it.
 		if result.From == result.To {
-			return
+			return nil
 		}
 
 		// Calculate the position of the expression in the file and if it has already been replaced, skip it.
@@ -162,29 +196,45 @@ func check(pass *analysis.Pass) func(ast.Node) {
 				arf[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
 			} else {
 				if arfl[0] <= filePos.Offset && fileEnd.Offset <= arfl[1] {
-					return
+					return nil
 				}
 				arf[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
 			}
 		}
 
-		pass.Report(analysis.Diagnostic{
-			Pos:     n.Pos(),
-			End:     n.End(),
-			Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
-			SuggestedFixes: []analysis.SuggestedFix{
-				{
-					Message: fmt.Sprintf("%q should be replaced with %q", result.From, result.To),
-					TextEdits: []analysis.TextEdit{
-						{
-							Pos:     n.Pos(),
-							End:     n.End(),
-							NewText: []byte(result.To),
+		switch mode {
+		case StandaloneMode:
+			pass.Report(analysis.Diagnostic{
+				Pos:     n.Pos(),
+				End:     n.End(),
+				Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
+				SuggestedFixes: []analysis.SuggestedFix{
+					{
+						Message: fmt.Sprintf("%q should be replaced with %q", result.From, result.To),
+						TextEdits: []analysis.TextEdit{
+							{
+								Pos:     n.Pos(),
+								End:     n.End(),
+								NewText: []byte(result.To),
+							},
 						},
 					},
 				},
-			},
-		})
+			})
+
+		case GolangciLintMode:
+			return &Issue{
+				Pos:     pass.Fset.Position(n.Pos()),
+				Message: fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To),
+				InlineFix: InlineFix{
+					StartCol:  pass.Fset.Position(n.Pos()).Column - 1,
+					Length:    len(result.From),
+					NewString: result.To,
+				},
+			}
+		}
+
+		return nil
 	}
 }
 

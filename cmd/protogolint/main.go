@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	singlechecker.Main(protogolint.Analyzer)
+	singlechecker.Main(protogolint.NewAnalyzer())
 }
