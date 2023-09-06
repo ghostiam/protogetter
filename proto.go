@@ -19,7 +19,7 @@ import (
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "protogolint",
-	Doc:      "reports direct reads from proto message fields when getters should be used",
+	Doc:      "Reports direct reads from proto message fields when getters should be used",
 	Run:      run,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
