@@ -2,7 +2,6 @@ package protogolint
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -26,17 +25,27 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	ins, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, errors.New("analyzer is not type *inspector.Inspector")
-	}
-
 	nodeTypes := []ast.Node{
 		(*ast.AssignStmt)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.SelectorExpr)(nil),
 	}
 
+	// Skip generated files.
+	var files []*ast.File
+filesLoop:
+	for _, f := range pass.Files {
+		for _, c := range f.Comments {
+			if strings.HasPrefix(c.Text(), "Code generated") {
+				continue filesLoop
+			}
+
+		}
+
+		files = append(files, f)
+	}
+
+	ins := inspector.New(files)
 	ins.Preorder(nodeTypes, check(pass))
 
 	return nil, nil
