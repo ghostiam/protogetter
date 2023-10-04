@@ -388,30 +388,24 @@ func (f *posFilter) AddAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end t
 	lines[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
 }
 
-const messageState = "google.golang.org/protobuf/internal/impl.MessageState"
-
 func isProtoMessage(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	ptr, ok := t.Underlying().(*types.Pointer)
-	if !ok {
-		return false
-	}
-	named, ok := ptr.Elem().(*types.Named)
-	if !ok {
-		return false
-	}
-	sct, ok := named.Underlying().(*types.Struct)
-	if !ok {
-		return false
-	}
-	if sct.NumFields() == 0 {
-		return false
+	// All structures that implement the proto.Message interface have a ProtoMessage method and are proto-structures.
+	// This interface has been generated since version 1.0.0 and continues exists for compatibility.
+	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
+	ok := methodIsExists(pass.TypesInfo, expr, "ProtoMessage")
+	if ok {
+		return true
 	}
 
-	return sct.Field(0).Type().String() == messageState
+	// Also, we are checking for the presence of the ProtoReflect method, which is presently being generated
+	// and corresponds to v2 version.
+	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
+	ok = methodIsExists(pass.TypesInfo, expr, "ProtoReflect")
+	if ok {
+		return true
+	}
+
+	return false
 }
 
 func methodIsExists(info *types.Info, x ast.Expr, name string) bool {
