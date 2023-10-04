@@ -177,20 +177,26 @@ func (r *Result) Skipped() bool {
 }
 
 func isProtoMessage(info *types.Info, expr ast.Expr) bool {
-	// All structures that implement the proto.Message interface have a ProtoMessage method and are proto-structures.
-	// This interface has been generated since version 1.0.0 and continues exists for compatibility.
-	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
-	ok := methodIsExists(info, expr, "ProtoMessage")
+	// First, we are checking for the presence of the ProtoReflect method which is currently being generated
+	// and corresponds to v2 version.
+	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
+	ok := methodIsExists(info, expr, "ProtoReflect")
 	if ok {
 		return true
 	}
 
-	// Also, we are checking for the presence of the ProtoReflect method, which is presently being generated
-	// and corresponds to v2 version.
-	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
-	ok = methodIsExists(info, expr, "ProtoReflect")
+	// Afterwards, we are checking the ProtoMessage method. All the structures that implement the proto.Message interface
+	// have a ProtoMessage method and are proto-structures. This interface has been generated since version 1.0.0 and
+	// continues to exist for compatibility.
+	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
+	ok = methodIsExists(info, expr, "ProtoMessage")
+	if ok {
+		// Since there is a protoc-gen-gogo generator that implements the proto.Message interface, but may not generate
+		// getters or generate from without checking for nil, so even if getters exist, we skip them.
+		return !methodIsExists(info, expr, "MarshalToSizedBuffer")
+	}
 
-	return ok
+	return false
 }
 
 func methodIsExists(info *types.Info, x ast.Expr, name string) bool {
