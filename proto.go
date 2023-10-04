@@ -264,12 +264,6 @@ func (c *Checker) Check(expr ast.Expr) {
 		c.Check(x.X)
 		c.write(".")
 
-		if methodIsExists(c.info, x.X, x.Sel.Name) {
-			// If the method has already been called, leave it as is.
-			c.write(x.Sel.Name)
-			return
-		}
-
 		// If getter exists, use it.
 		if methodIsExists(c.info, x.X, "Get"+x.Sel.Name) {
 			c.writeFrom(x.Sel.Name)
@@ -277,7 +271,8 @@ func (c *Checker) Check(expr ast.Expr) {
 			return
 		}
 
-		// If method does not exist, leave it as is.
+		// If the selector is not a proto-message or the method has already been called, we leave it unchanged.
+		// This approach is significantly more efficient than verifying the presence of methods in all cases.
 		c.write(x.Sel.Name)
 
 	case *ast.CallExpr:
