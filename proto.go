@@ -6,10 +6,7 @@ import (
 	"go/ast"
 	"go/format"
 	"go/token"
-	"go/types"
 	"log"
-	"os"
-	"reflect"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -21,6 +18,10 @@ type Mode int
 const (
 	StandaloneMode Mode = iota
 	GolangciLintMode
+)
+const (
+	msgFormat    = "proto field read without getter: %q should be %q"
+	fixMsgFormat = "%q should be %q"
 )
 
 func NewAnalyzer() *analysis.Analyzer {
@@ -53,14 +54,21 @@ func Run(pass *analysis.Pass, mode Mode) []Issue {
 	}
 
 	ins := inspector.New(files)
-	checker := check(pass, mode)
 
 	var issues []Issue
 
+	filter := NewPosFilter()
 	ins.Preorder(nodeTypes, func(node ast.Node) {
-		issue := checker(node)
-		if issue != nil {
-			issues = append(issues, *issue)
+		report := analyse(pass, filter, node)
+		if report == nil {
+			return
+		}
+
+		switch mode {
+		case StandaloneMode:
+			pass.Report(report.ToDiagReport())
+		case GolangciLintMode:
+			issues = append(issues, report.ToIssue(pass.Fset))
 		}
 	})
 
@@ -80,349 +88,90 @@ type InlineFix struct {
 	NewString string
 }
 
-func isGeneratedFile(f *ast.File) bool {
-	for _, c := range f.Comments {
-		if strings.HasPrefix(c.Text(), "Code generated") {
-			return true
-		}
-	}
-
-	return false
+type Report struct {
+	node   ast.Node
+	result *Result
 }
 
-func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
-	filter := newPosFilter()
+func (r *Report) ToIssue(fset *token.FileSet) Issue {
+	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
+	return Issue{
+		Pos:     fset.Position(r.node.Pos()),
+		Message: msg,
+		InlineFix: InlineFix{
+			StartCol:  fset.Position(r.node.Pos()).Column - 1,
+			Length:    len(r.result.From),
+			NewString: r.result.To,
+		},
+	}
+}
 
-	return func(n ast.Node) *Issue {
-		// fmt.Printf("\n>>> check: %s\n", formatNode(n))
-		if filter.IsFiltered(n.Pos()) {
-			// fmt.Printf(">>> filtered\n")
-			return nil
-		}
+func (r *Report) ToDiagReport() analysis.Diagnostic {
+	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
+	fixMsg := fmt.Sprintf(fixMsgFormat, r.result.From, r.result.To)
 
-		a := NewChecker(pass)
-
-		switch x := n.(type) {
-		case *ast.AssignStmt:
-			// Skip any assignment to the field.
-			for _, lhs := range x.Lhs {
-				filter.AddPos(lhs.Pos())
-			}
-
-		case *ast.IncDecStmt:
-			// Skip any increment/decrement to the field.
-			filter.AddPos(x.X.Pos())
-
-		case *ast.CallExpr:
-			switch f := x.Fun.(type) {
-			case *ast.SelectorExpr:
-				if !isProtoMessage(pass.TypesInfo, f.X) {
-					for _, arg := range x.Args {
-						// Skip all expressions when the function points to a field, for example somefunc(&t).
-						// Because this is not direct reading, but most likely writing by pointer (for example like sql.Scan).
-						ue, ok := arg.(*ast.UnaryExpr)
-						if !ok || ue.Op != token.AND {
-							continue
-						}
-
-						filter.AddPos(ue.X.Pos())
-					}
-
-					return nil
-				}
-
-				a.Check(x)
-
-			default:
-				if !isProtoMessage(pass.TypesInfo, x.Fun) {
-					return nil
-				}
-
-				a.SetError(fmt.Errorf("CallExpr: not implemented for type: %s (%s)", reflect.TypeOf(f), formatNode(n)))
-			}
-
-		case *ast.SelectorExpr:
-			if !isProtoMessage(pass.TypesInfo, x.X) {
-				// If the selector is not on a proto message, skip it.
-				return nil
-			}
-
-			a.Check(x)
-
-		default:
-			a.SetError(fmt.Errorf("not implemented for type: %s (%s)", reflect.TypeOf(x), formatNode(n)))
-		}
-
-		result, err := a.Result()
-
-		// fmt.Printf(">>> check: res: %v, err: %v\n", result, err)
-
-		if err != nil {
-			pass.Report(analysis.Diagnostic{
-				Pos:     n.Pos(),
-				End:     n.End(),
-				Message: fmt.Sprintf("error: %v", err),
-			})
-
-			return nil
-		}
-
-		// If existing in filter, skip it.
-		if filter.IsFiltered(n.Pos()) {
-			return nil
-		}
-
-		// If from and to are the same, skip it.
-		if result.From == result.To {
-			return nil
-		}
-
-		// If the expression has already been replaced, skip it.
-		if filter.IsAlreadyReplaced(pass, n.Pos(), n.End()) {
-			return nil
-		}
-		// Add the expression to the filter.
-		filter.AddAlreadyReplaced(pass, n.Pos(), n.End())
-
-		msg := fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To)
-
-		switch mode {
-		case StandaloneMode:
-			pass.Report(analysis.Diagnostic{
-				Pos:     n.Pos(),
-				End:     n.End(),
-				Message: msg,
-				SuggestedFixes: []analysis.SuggestedFix{
+	return analysis.Diagnostic{
+		Pos:     r.node.Pos(),
+		End:     r.node.End(),
+		Message: msg,
+		SuggestedFixes: []analysis.SuggestedFix{
+			{
+				Message: fixMsg,
+				TextEdits: []analysis.TextEdit{
 					{
-						Message: fmt.Sprintf("%q should be replaced with %q", result.From, result.To),
-						TextEdits: []analysis.TextEdit{
-							{
-								Pos:     n.Pos(),
-								End:     n.End(),
-								NewText: []byte(result.To),
-							},
-						},
+						Pos:     r.node.Pos(),
+						End:     r.node.End(),
+						NewText: []byte(r.result.To),
 					},
 				},
-			})
+			},
+		},
+	}
+}
 
-		case GolangciLintMode:
-			return &Issue{
-				Pos:     pass.Fset.Position(n.Pos()),
-				Message: msg,
-				InlineFix: InlineFix{
-					StartCol:  pass.Fset.Position(n.Pos()).Column - 1,
-					Length:    len(result.From),
-					NewString: result.To,
-				},
-			}
-		}
+func analyse(pass *analysis.Pass, filter *PosFilter, n ast.Node) *Report {
+	// fmt.Printf("\n>>> check: %s\n", formatNode(n))
+	if filter.IsFiltered(n.Pos()) {
+		// fmt.Printf(">>> filtered\n")
+		return nil
+	}
+
+	result, err := Process(pass.TypesInfo, filter, n)
+	if err != nil {
+		pass.Report(analysis.Diagnostic{
+			Pos:     n.Pos(),
+			End:     n.End(),
+			Message: fmt.Sprintf("error: %v", err),
+		})
 
 		return nil
 	}
-}
 
-type Checker struct {
-	info *types.Info
+	// If existing in filter, skip it.
+	if filter.IsFiltered(n.Pos()) {
+		return nil
+	}
 
-	to   strings.Builder
-	from strings.Builder
-	err  error
-}
+	if result.Skipped() {
+		return nil
+	}
 
-// NewChecker creates a new Checker instance.
-func NewChecker(pass *analysis.Pass) *Checker {
-	return &Checker{
-		info: pass.TypesInfo,
+	// If the expression has already been replaced, skip it.
+	if filter.IsAlreadyReplaced(pass.Fset, n.Pos(), n.End()) {
+		return nil
+	}
+	// Add the expression to the filter.
+	filter.AddAlreadyReplaced(pass.Fset, n.Pos(), n.End())
+
+	return &Report{
+		node:   n,
+		result: result,
 	}
 }
 
-func (c *Checker) SetError(err error) {
-	c.err = err
-}
-
-func (c *Checker) Result() (*CheckerResult, error) {
-	if c.err != nil {
-		return nil, c.err
-	}
-
-	return &CheckerResult{
-		From: c.from.String(),
-		To:   c.to.String(),
-	}, nil
-}
-
-func (c *Checker) Check(expr ast.Expr) {
-	switch x := expr.(type) {
-	case *ast.Ident:
-		c.write(x.Name)
-
-	case *ast.BasicLit:
-		c.write(x.Value)
-
-	case *ast.SelectorExpr:
-		c.Check(x.X)
-		c.write(".")
-
-		// If getter exists, use it.
-		if methodIsExists(c.info, x.X, "Get"+x.Sel.Name) {
-			c.writeFrom(x.Sel.Name)
-			c.writeTo("Get" + x.Sel.Name + "()")
-			return
-		}
-
-		// If the selector is not a proto-message or the method has already been called, we leave it unchanged.
-		// This approach is significantly more efficient than verifying the presence of methods in all cases.
-		c.write(x.Sel.Name)
-
-	case *ast.CallExpr:
-		c.Check(x.Fun)
-		c.write("(")
-		for i, arg := range x.Args {
-			if i > 0 {
-				c.write(",")
-			}
-			c.Check(arg)
-		}
-		c.write(")")
-
-	case *ast.IndexExpr:
-		c.Check(x.X)
-		c.write("[")
-		c.Check(x.Index)
-		c.write("]")
-
-	case *ast.BinaryExpr:
-		c.Check(x.X)
-		c.write(x.Op.String())
-		c.Check(x.Y)
-
-	default:
-		c.err = fmt.Errorf("checker not implemented for type: %s", reflect.TypeOf(x))
-	}
-}
-
-func (c *Checker) write(s string) {
-	c.writeTo(s)
-	c.writeFrom(s)
-}
-
-func (c *Checker) writeTo(s string) {
-	c.to.WriteString(s)
-}
-
-func (c *Checker) writeFrom(s string) {
-	c.from.WriteString(s)
-}
-
-// CheckerResult contains source code (from) and suggested change (to)
-type CheckerResult struct {
-	From string
-	To   string
-}
-
-type posFilter struct {
-	positions       map[token.Pos]struct{}
-	alreadyReplaced map[string]map[int][2]int // map[filename][line][start, end]
-}
-
-func newPosFilter() *posFilter {
-	return &posFilter{
-		positions:       make(map[token.Pos]struct{}),
-		alreadyReplaced: make(map[string]map[int][2]int),
-	}
-}
-
-func (f *posFilter) IsFiltered(pos token.Pos) bool {
-	_, ok := f.positions[pos]
-	return ok
-}
-
-func (f *posFilter) AddPos(pos token.Pos) {
-	f.positions[pos] = struct{}{}
-}
-
-func (f *posFilter) IsAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end token.Pos) bool {
-	filePos := pass.Fset.Position(pos)
-	fileEnd := pass.Fset.Position(end)
-
-	lines, ok := f.alreadyReplaced[filePos.Filename]
-	if !ok {
-		return false
-	}
-
-	lineRange, ok := lines[filePos.Line]
-	if !ok {
-		return false
-	}
-
-	if lineRange[0] <= filePos.Offset && fileEnd.Offset <= lineRange[1] {
-		return true
-	}
-
-	return false
-}
-
-func (f *posFilter) AddAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end token.Pos) {
-	filePos := pass.Fset.Position(pos)
-	fileEnd := pass.Fset.Position(end)
-
-	lines, ok := f.alreadyReplaced[filePos.Filename]
-	if !ok {
-		lines = make(map[int][2]int)
-		f.alreadyReplaced[filePos.Filename] = lines
-	}
-
-	lineRange, ok := lines[filePos.Line]
-	if ok && lineRange[0] <= filePos.Offset && fileEnd.Offset <= lineRange[1] {
-		return
-	}
-
-	lines[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
-}
-
-func isProtoMessage(info *types.Info, expr ast.Expr) bool {
-	// All structures that implement the proto.Message interface have a ProtoMessage method and are proto-structures.
-	// This interface has been generated since version 1.0.0 and continues exists for compatibility.
-	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
-	ok := methodIsExists(info, expr, "ProtoMessage")
-	if ok {
-		return true
-	}
-
-	// Also, we are checking for the presence of the ProtoReflect method, which is presently being generated
-	// and corresponds to v2 version.
-	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
-	ok = methodIsExists(info, expr, "ProtoReflect")
-	if ok {
-		return true
-	}
-
-	return false
-}
-
-func methodIsExists(info *types.Info, x ast.Expr, name string) bool {
-	if info == nil {
-		return false
-	}
-
-	t := info.TypeOf(x)
-	if t == nil {
-		return false
-	}
-
-	ptr, ok := t.Underlying().(*types.Pointer)
-	if ok {
-		t = ptr.Elem()
-	}
-
-	named, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-
-	for i := 0; i < named.NumMethods(); i++ {
-		if named.Method(i).Name() == name {
+func isGeneratedFile(f *ast.File) bool {
+	for _, c := range f.Comments {
+		if strings.HasPrefix(c.Text(), "Code generated") {
 			return true
 		}
 	}
@@ -438,10 +187,4 @@ func formatNode(node ast.Node) string {
 	}
 
 	return buf.String()
-}
-
-func printAST(msg string, node ast.Node) {
-	fmt.Printf(">>> %s:\n%s\n\n\n", msg, formatNode(node))
-	ast.Fprint(os.Stdout, nil, node, nil)
-	fmt.Println("--------------")
 }
