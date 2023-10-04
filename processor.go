@@ -41,6 +41,8 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 
 	case *ast.UnaryExpr:
 		if x.Op == token.AND {
+			// Skip all expressions when the field is used as a pointer.
+			// Because this is not direct reading, but most likely writing by pointer (for example like sql.Scan).
 			c.filter.AddPos(x.X.Pos())
 		}
 
