@@ -116,7 +116,7 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 		case *ast.CallExpr:
 			switch f := x.Fun.(type) {
 			case *ast.SelectorExpr:
-				if !isProtoMessage(pass, f.X) {
+				if !isProtoMessage(pass.TypesInfo, f.X) {
 					for _, arg := range x.Args {
 						// Skip all expressions when the function points to a field, for example somefunc(&t).
 						// Because this is not direct reading, but most likely writing by pointer (for example like sql.Scan).
@@ -134,7 +134,7 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 				a.Check(x)
 
 			default:
-				if !isProtoMessage(pass, x.Fun) {
+				if !isProtoMessage(pass.TypesInfo, x.Fun) {
 					return nil
 				}
 
@@ -142,7 +142,7 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 			}
 
 		case *ast.SelectorExpr:
-			if !isProtoMessage(pass, x.X) {
+			if !isProtoMessage(pass.TypesInfo, x.X) {
 				// If the selector is not on a proto message, skip it.
 				return nil
 			}
@@ -386,11 +386,11 @@ func (f *posFilter) AddAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end t
 	lines[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
 }
 
-func isProtoMessage(pass *analysis.Pass, expr ast.Expr) bool {
+func isProtoMessage(info *types.Info, expr ast.Expr) bool {
 	// All structures that implement the proto.Message interface have a ProtoMessage method and are proto-structures.
 	// This interface has been generated since version 1.0.0 and continues exists for compatibility.
 	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
-	ok := methodIsExists(pass.TypesInfo, expr, "ProtoMessage")
+	ok := methodIsExists(info, expr, "ProtoMessage")
 	if ok {
 		return true
 	}
@@ -398,7 +398,7 @@ func isProtoMessage(pass *analysis.Pass, expr ast.Expr) bool {
 	// Also, we are checking for the presence of the ProtoReflect method, which is presently being generated
 	// and corresponds to v2 version.
 	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
-	ok = methodIsExists(pass.TypesInfo, expr, "ProtoReflect")
+	ok = methodIsExists(info, expr, "ProtoReflect")
 	if ok {
 		return true
 	}
