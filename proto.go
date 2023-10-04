@@ -93,13 +93,12 @@ func isGeneratedFile(f *ast.File) bool {
 }
 
 func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
-	skippedPos := map[token.Pos]struct{}{}
-	isAlreadyReplaced := map[string]map[int][2]int{} // map[filename][line][start, end]
+	filter := newPosFilter()
 
 	return func(n ast.Node) *Issue {
 		// fmt.Printf("\n>>> check: %s\n", formatNode(n))
-		if _, ok := skippedPos[n.Pos()]; ok {
-			// fmt.Printf(">>> ignored\n")
+		if filter.IsFiltered(n.Pos()) {
+			// fmt.Printf(">>> filtered\n")
 			return nil
 		}
 
@@ -109,12 +108,12 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 		case *ast.AssignStmt:
 			// Skip any assignment to the field.
 			for _, lhs := range x.Lhs {
-				skippedPos[lhs.Pos()] = struct{}{}
+				filter.AddPos(lhs.Pos())
 			}
 
 		case *ast.IncDecStmt:
 			// Skip any increment/decrement to the field.
-			skippedPos[x.X.Pos()] = struct{}{}
+			filter.AddPos(x.X.Pos())
 
 		case *ast.CallExpr:
 			switch f := x.Fun.(type) {
@@ -128,7 +127,7 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 							continue
 						}
 
-						skippedPos[ue.X.Pos()] = struct{}{}
+						filter.AddPos(ue.X.Pos())
 					}
 
 					return nil
@@ -170,8 +169,8 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 			return nil
 		}
 
-		// If existing in skippedPos, skip it.
-		if _, ok := skippedPos[n.Pos()]; ok {
+		// If existing in filter, skip it.
+		if filter.IsFiltered(n.Pos()) {
 			return nil
 		}
 
@@ -180,27 +179,12 @@ func check(pass *analysis.Pass, mode Mode) func(ast.Node) *Issue {
 			return nil
 		}
 
-		// Calculate the position of the expression in the file and if it has already been replaced, skip it.
-		{
-			filePos := pass.Fset.Position(n.Pos())
-			fileEnd := pass.Fset.Position(n.End())
-
-			arf, ok := isAlreadyReplaced[filePos.Filename]
-			if !ok {
-				arf = make(map[int][2]int)
-				isAlreadyReplaced[filePos.Filename] = arf
-			}
-
-			arfl, ok := arf[filePos.Line]
-			if !ok {
-				arf[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
-			} else {
-				if arfl[0] <= filePos.Offset && fileEnd.Offset <= arfl[1] {
-					return nil
-				}
-				arf[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
-			}
+		// If the expression has already been replaced, skip it.
+		if filter.IsAlreadyReplaced(pass, n.Pos(), n.End()) {
+			return nil
 		}
+		// Add the expression to the filter.
+		filter.AddAlreadyReplaced(pass, n.Pos(), n.End())
 
 		msg := fmt.Sprintf(`proto field read without getter: %q should be %q`, result.From, result.To)
 
@@ -354,6 +338,66 @@ func (c *Checker) writeFrom(s string) {
 type CheckerResult struct {
 	From string
 	To   string
+}
+
+type posFilter struct {
+	positions       map[token.Pos]struct{}
+	alreadyReplaced map[string]map[int][2]int // map[filename][line][start, end]
+}
+
+func newPosFilter() *posFilter {
+	return &posFilter{
+		positions:       make(map[token.Pos]struct{}),
+		alreadyReplaced: make(map[string]map[int][2]int),
+	}
+}
+
+func (f *posFilter) IsFiltered(pos token.Pos) bool {
+	_, ok := f.positions[pos]
+	return ok
+}
+
+func (f *posFilter) AddPos(pos token.Pos) {
+	f.positions[pos] = struct{}{}
+}
+
+func (f *posFilter) IsAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end token.Pos) bool {
+	filePos := pass.Fset.Position(pos)
+	fileEnd := pass.Fset.Position(end)
+
+	lines, ok := f.alreadyReplaced[filePos.Filename]
+	if !ok {
+		return false
+	}
+
+	lineRange, ok := lines[filePos.Line]
+	if !ok {
+		return false
+	}
+
+	if lineRange[0] <= filePos.Offset && fileEnd.Offset <= lineRange[1] {
+		return true
+	}
+
+	return false
+}
+
+func (f *posFilter) AddAlreadyReplaced(pass *analysis.Pass, pos token.Pos, end token.Pos) {
+	filePos := pass.Fset.Position(pos)
+	fileEnd := pass.Fset.Position(end)
+
+	lines, ok := f.alreadyReplaced[filePos.Filename]
+	if !ok {
+		lines = make(map[int][2]int)
+		f.alreadyReplaced[filePos.Filename] = lines
+	}
+
+	lineRange, ok := lines[filePos.Line]
+	if ok && lineRange[0] <= filePos.Offset && fileEnd.Offset <= lineRange[1] {
+		return
+	}
+
+	lines[filePos.Line] = [2]int{filePos.Offset, fileEnd.Offset}
 }
 
 const messageState = "google.golang.org/protobuf/internal/impl.MessageState"
