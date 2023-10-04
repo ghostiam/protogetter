@@ -5,5 +5,5 @@ test:
 
 .PHONY: install
 install:
-	go install ./cmd/protogolint
-	@echo "Installed in $(shell which protogolint)"
+	go install ./cmd/protogetter
+	@echo "Installed in $(shell which protogetter)"

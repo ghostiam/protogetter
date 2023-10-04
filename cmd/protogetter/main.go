@@ -3,9 +3,9 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/singlechecker"
 
-	"github.com/ghostiam/protogolint"
+	"github.com/ghostiam/protogetter"
 )
 
 func main() {
-	singlechecker.Main(protogolint.NewAnalyzer())
+	singlechecker.Main(protogetter.NewAnalyzer())
 }

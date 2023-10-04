@@ -1,14 +1,14 @@
-package protogolint_test
+package protogetter_test
 
 import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
 
-	"github.com/ghostiam/protogolint"
+	"github.com/ghostiam/protogetter"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.RunWithSuggestedFixes(t, testdata, protogolint.NewAnalyzer())
+	analysistest.RunWithSuggestedFixes(t, testdata, protogetter.NewAnalyzer())
 }

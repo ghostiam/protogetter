@@ -1,4 +1,4 @@
-module github.com/ghostiam/protogolint
+module github.com/ghostiam/protogetter
 
 go 1.19
 

@@ -1,4 +1,4 @@
-module github.com/ghostiam/protogolint/testdata
+module github.com/ghostiam/protogetter/testdata
 
 go 1.19
 

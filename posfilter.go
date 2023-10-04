@@ -1,4 +1,4 @@
-package protogolint
+package protogetter
 
 import (
 	"go/token"

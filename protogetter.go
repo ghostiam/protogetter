@@ -1,4 +1,4 @@
-package protogolint
+package protogetter
 
 import (
 	"bytes"
@@ -19,15 +19,12 @@ const (
 	StandaloneMode Mode = iota
 	GolangciLintMode
 )
-const (
-	msgFormat    = "proto field read without getter: %q should be %q"
-	fixMsgFormat = "%q should be %q"
-)
+
 const msgFormat = "avoid direct access to proto field %q use %q"
 
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
-		Name: "protogolint",
+		Name: "protogetter",
 		Doc:  "Reports direct reads from proto message fields when getters should be used",
 		Run: func(pass *analysis.Pass) (any, error) {
 			Run(pass, StandaloneMode)
@@ -76,59 +73,6 @@ func Run(pass *analysis.Pass, mode Mode) []Issue {
 	return issues
 }
 
-// Issue is used to integrate with golangci-lint's inline auto fix.
-type Issue struct {
-	Pos       token.Position
-	Message   string
-	InlineFix InlineFix
-}
-
-type InlineFix struct {
-	StartCol  int // zero-based
-	Length    int
-	NewString string
-}
-
-type Report struct {
-	node   ast.Node
-	result *Result
-}
-
-func (r *Report) ToIssue(fset *token.FileSet) Issue {
-	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
-	return Issue{
-		Pos:     fset.Position(r.node.Pos()),
-		Message: msg,
-		InlineFix: InlineFix{
-			StartCol:  fset.Position(r.node.Pos()).Column - 1,
-			Length:    len(r.result.From),
-			NewString: r.result.To,
-		},
-	}
-}
-
-func (r *Report) ToDiagReport() analysis.Diagnostic {
-	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
-
-	return analysis.Diagnostic{
-		Pos:     r.node.Pos(),
-		End:     r.node.End(),
-		Message: msg,
-		SuggestedFixes: []analysis.SuggestedFix{
-			{
-				Message: msg,
-				TextEdits: []analysis.TextEdit{
-					{
-						Pos:     r.node.Pos(),
-						End:     r.node.End(),
-						NewText: []byte(r.result.To),
-					},
-				},
-			},
-		},
-	}
-}
-
 func analyse(pass *analysis.Pass, filter *PosFilter, n ast.Node) *Report {
 	// fmt.Printf("\n>>> check: %s\n", formatNode(n))
 	if filter.IsFiltered(n.Pos()) {
@@ -166,6 +110,59 @@ func analyse(pass *analysis.Pass, filter *PosFilter, n ast.Node) *Report {
 	return &Report{
 		node:   n,
 		result: result,
+	}
+}
+
+// Issue is used to integrate with golangci-lint's inline auto fix.
+type Issue struct {
+	Pos       token.Position
+	Message   string
+	InlineFix InlineFix
+}
+
+type InlineFix struct {
+	StartCol  int // zero-based
+	Length    int
+	NewString string
+}
+
+type Report struct {
+	node   ast.Node
+	result *Result
+}
+
+func (r *Report) ToDiagReport() analysis.Diagnostic {
+	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
+
+	return analysis.Diagnostic{
+		Pos:     r.node.Pos(),
+		End:     r.node.End(),
+		Message: msg,
+		SuggestedFixes: []analysis.SuggestedFix{
+			{
+				Message: msg,
+				TextEdits: []analysis.TextEdit{
+					{
+						Pos:     r.node.Pos(),
+						End:     r.node.End(),
+						NewText: []byte(r.result.To),
+					},
+				},
+			},
+		},
+	}
+}
+
+func (r *Report) ToIssue(fset *token.FileSet) Issue {
+	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
+	return Issue{
+		Pos:     fset.Position(r.node.Pos()),
+		Message: msg,
+		InlineFix: InlineFix{
+			StartCol:  fset.Position(r.node.Pos()).Column - 1,
+			Length:    len(r.result.From),
+			NewString: r.result.To,
+		},
 	}
 }
 

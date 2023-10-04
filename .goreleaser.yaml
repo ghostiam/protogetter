@@ -2,9 +2,9 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - id: protogolint
-    main: ./cmd/protogolint
-    binary: protogolint
+  - id: protogetter
+    main: ./cmd/protogetter
+    binary: protogetter
     env:
       - CGO_ENABLED=0
     goos:

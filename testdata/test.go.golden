@@ -3,7 +3,7 @@ package testdata
 import (
 	"fmt"
 
-	"github.com/ghostiam/protogolint/testdata/proto"
+	"github.com/ghostiam/protogetter/testdata/proto"
 )
 
 type Test struct {
