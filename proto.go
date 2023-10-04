@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -32,7 +31,6 @@ func NewAnalyzer() *analysis.Analyzer {
 			Run(pass, StandaloneMode)
 			return nil, nil
 		},
-		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
 }
 
