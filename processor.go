@@ -180,7 +180,8 @@ func isProtoMessage(info *types.Info, expr ast.Expr) bool {
 	// First, we are checking for the presence of the ProtoReflect method which is currently being generated
 	// and corresponds to v2 version.
 	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
-	ok := methodIsExists(info, expr, "ProtoReflect")
+	const protoV2Method = "ProtoReflect"
+	ok := methodIsExists(info, expr, protoV2Method)
 	if ok {
 		return true
 	}
@@ -189,11 +190,13 @@ func isProtoMessage(info *types.Info, expr ast.Expr) bool {
 	// have a ProtoMessage method and are proto-structures. This interface has been generated since version 1.0.0 and
 	// continues to exist for compatibility.
 	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
-	ok = methodIsExists(info, expr, "ProtoMessage")
+	const protoV1Method = "ProtoMessage"
+	ok = methodIsExists(info, expr, protoV1Method)
 	if ok {
 		// Since there is a protoc-gen-gogo generator that implements the proto.Message interface, but may not generate
 		// getters or generate from without checking for nil, so even if getters exist, we skip them.
-		return !methodIsExists(info, expr, "MarshalToSizedBuffer")
+		const protocGenGoGoMethod = "MarshalToSizedBuffer"
+		return !methodIsExists(info, expr, protocGenGoGoMethod)
 	}
 
 	return false
