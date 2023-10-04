@@ -23,6 +23,7 @@ const (
 	msgFormat    = "proto field read without getter: %q should be %q"
 	fixMsgFormat = "%q should be %q"
 )
+const msgFormat = "avoid direct access to proto field %q use %q"
 
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
@@ -108,7 +109,6 @@ func (r *Report) ToIssue(fset *token.FileSet) Issue {
 
 func (r *Report) ToDiagReport() analysis.Diagnostic {
 	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
-	fixMsg := fmt.Sprintf(fixMsgFormat, r.result.From, r.result.To)
 
 	return analysis.Diagnostic{
 		Pos:     r.node.Pos(),
@@ -116,7 +116,7 @@ func (r *Report) ToDiagReport() analysis.Diagnostic {
 		Message: msg,
 		SuggestedFixes: []analysis.SuggestedFix{
 			{
-				Message: fixMsg,
+				Message: msg,
 				TextEdits: []analysis.TextEdit{
 					{
 						Pos:     r.node.Pos(),

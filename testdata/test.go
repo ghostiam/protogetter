@@ -11,59 +11,59 @@ type Test struct {
 }
 
 func testInvalid(t *proto.Test) {
-	func(...interface{}) {}(t.B, t.D)      // want "proto field read without getter:" "proto field read without getter:"
-	func(...interface{}) {}(t.GetB(), t.D) // want "proto field read without getter:"
-	func(...interface{}) {}(t.B, t.GetD()) // want "proto field read without getter:"
+	func(...interface{}) {}(t.B, t.D)      // want "avoid direct access to proto field" "avoid direct access to proto field"
+	func(...interface{}) {}(t.GetB(), t.D) // want "avoid direct access to proto field"
+	func(...interface{}) {}(t.B, t.GetD()) // want "avoid direct access to proto field"
 
-	_ = t.D                                             // want "proto field read without getter:"
-	_ = t.F                                             // want "proto field read without getter:"
-	_ = t.I32                                           // want "proto field read without getter:"
-	_ = t.I64                                           // want "proto field read without getter:"
-	_ = t.U32                                           // want "proto field read without getter:"
-	_ = t.U64                                           // want "proto field read without getter:"
-	_ = t.T                                             // want "proto field read without getter:"
-	_ = t.B                                             // want "proto field read without getter:"
-	_ = t.S                                             // want "proto field read without getter:"
-	_ = t.Embedded                                      // want "proto field read without getter:"
-	_ = t.Embedded.S                                    // want "proto field read without getter:"
-	_ = t.GetEmbedded().S                               // want "proto field read without getter:"
-	_ = t.Embedded.Embedded                             // want "proto field read without getter:"
-	_ = t.GetEmbedded().Embedded                        // want "proto field read without getter:"
-	_ = t.Embedded.Embedded.S                           // want "proto field read without getter:"
-	_ = t.GetEmbedded().GetEmbedded().S                 // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds                             // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds[0]                          // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds[0].S                        // want "proto field read without getter:"
-	_ = t.GetRepeatedEmbeddeds()[0].S                   // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds[0].Embedded                 // want "proto field read without getter:"
-	_ = t.GetRepeatedEmbeddeds()[0].Embedded            // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds[0].Embedded.S               // want "proto field read without getter:"
-	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().S     // want "proto field read without getter:"
-	_ = t.RepeatedEmbeddeds[t.I64].Embedded.S           // want "proto field read without getter:"
-	_ = t.GetRepeatedEmbeddeds()[t.I64].GetEmbedded().S // want "proto field read without getter:"
+	_ = t.D                                             // want "avoid direct access to proto field"
+	_ = t.F                                             // want "avoid direct access to proto field"
+	_ = t.I32                                           // want "avoid direct access to proto field"
+	_ = t.I64                                           // want "avoid direct access to proto field"
+	_ = t.U32                                           // want "avoid direct access to proto field"
+	_ = t.U64                                           // want "avoid direct access to proto field"
+	_ = t.T                                             // want "avoid direct access to proto field"
+	_ = t.B                                             // want "avoid direct access to proto field"
+	_ = t.S                                             // want "avoid direct access to proto field"
+	_ = t.Embedded                                      // want "avoid direct access to proto field"
+	_ = t.Embedded.S                                    // want "avoid direct access to proto field"
+	_ = t.GetEmbedded().S                               // want "avoid direct access to proto field"
+	_ = t.Embedded.Embedded                             // want "avoid direct access to proto field"
+	_ = t.GetEmbedded().Embedded                        // want "avoid direct access to proto field"
+	_ = t.Embedded.Embedded.S                           // want "avoid direct access to proto field"
+	_ = t.GetEmbedded().GetEmbedded().S                 // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds                             // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds[0]                          // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds[0].S                        // want "avoid direct access to proto field"
+	_ = t.GetRepeatedEmbeddeds()[0].S                   // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds[0].Embedded                 // want "avoid direct access to proto field"
+	_ = t.GetRepeatedEmbeddeds()[0].Embedded            // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds[0].Embedded.S               // want "avoid direct access to proto field"
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().S     // want "avoid direct access to proto field"
+	_ = t.RepeatedEmbeddeds[t.I64].Embedded.S           // want "avoid direct access to proto field"
+	_ = t.GetRepeatedEmbeddeds()[t.I64].GetEmbedded().S // want "avoid direct access to proto field"
 
 	var many []*proto.Test
 	manyIndex := 42
 
-	_ = many[0].T                   // want "proto field read without getter:"
-	_ = many[1].Embedded.S          // want "proto field read without getter:"
-	_ = many[2].GetEmbedded().S     // want "proto field read without getter:"
-	_ = many[3].Embedded.Embedded.S // want "proto field read without getter:"
-	_ = many[manyIndex].S           // want "proto field read without getter:"
+	_ = many[0].T                   // want "avoid direct access to proto field"
+	_ = many[1].Embedded.S          // want "avoid direct access to proto field"
+	_ = many[2].GetEmbedded().S     // want "avoid direct access to proto field"
+	_ = many[3].Embedded.Embedded.S // want "avoid direct access to proto field"
+	_ = many[manyIndex].S           // want "avoid direct access to proto field"
 
-	test := many[0].Embedded.S == "" || t.Embedded.CustomMethod() == nil || t.S == "" || t.Embedded == nil // want "proto field read without getter:" "proto field read without getter:" "proto field read without getter:" "proto field read without getter:"
+	test := many[0].Embedded.S == "" || t.Embedded.CustomMethod() == nil || t.S == "" || t.Embedded == nil // want "avoid direct access to proto field" "avoid direct access to proto field" "avoid direct access to proto field" "avoid direct access to proto field"
 	_ = test
 
 	other := proto.Other{}
-	_ = other.MyMethod(nil).S // want "proto field read without getter:"
+	_ = other.MyMethod(nil).S // want "avoid direct access to proto field"
 
-	ems := t.RepeatedEmbeddeds // want "proto field read without getter:"
-	_ = ems[len(ems)-1].S      // want "proto field read without getter:"
+	ems := t.RepeatedEmbeddeds // want "avoid direct access to proto field"
+	_ = ems[len(ems)-1].S      // want "avoid direct access to proto field"
 
 	ch := make(chan string)
-	ch <- t.S // want "proto field read without getter:"
+	ch <- t.S // want "avoid direct access to proto field"
 
-	for _, v := range t.RepeatedEmbeddeds { // want "proto field read without getter:"
+	for _, v := range t.RepeatedEmbeddeds { // want "avoid direct access to proto field"
 		_ = v
 	}
 }
