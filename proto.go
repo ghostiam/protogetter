@@ -266,14 +266,14 @@ func (c *Checker) Check(expr ast.Expr) {
 		c.Check(x.X)
 		c.write(".")
 
-		if c.methodExists(x.X, x.Sel.Name) {
+		if methodIsExists(c.info, x.X, x.Sel.Name) {
 			// If the method has already been called, leave it as is.
 			c.write(x.Sel.Name)
 			return
 		}
 
 		// If getter exists, use it.
-		if c.methodExists(x.X, "Get"+x.Sel.Name) {
+		if methodIsExists(c.info, x.X, "Get"+x.Sel.Name) {
 			c.writeFrom(x.Sel.Name)
 			c.writeTo("Get" + x.Sel.Name + "()")
 			return
@@ -307,18 +307,6 @@ func (c *Checker) Check(expr ast.Expr) {
 	default:
 		c.err = fmt.Errorf("checker not implemented for type: %s", reflect.TypeOf(x))
 	}
-}
-
-func (c *Checker) methodExists(x ast.Expr, name string) bool {
-	methods := getMethods(c.info, x)
-
-	for _, m := range methods {
-		if m == name {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (c *Checker) write(s string) {
@@ -426,14 +414,14 @@ func isProtoMessage(pass *analysis.Pass, expr ast.Expr) bool {
 	return sct.Field(0).Type().String() == messageState
 }
 
-func getMethods(info *types.Info, x ast.Expr) []string {
+func methodIsExists(info *types.Info, x ast.Expr, name string) bool {
 	if info == nil {
-		return nil
+		return false
 	}
 
 	t := info.TypeOf(x)
 	if t == nil {
-		return nil
+		return false
 	}
 
 	ptr, ok := t.Underlying().(*types.Pointer)
@@ -443,15 +431,16 @@ func getMethods(info *types.Info, x ast.Expr) []string {
 
 	named, ok := t.(*types.Named)
 	if !ok {
-		return nil
+		return false
 	}
 
-	methods := make([]string, 0, named.NumMethods())
 	for i := 0; i < named.NumMethods(); i++ {
-		methods = append(methods, named.Method(i).Name())
+		if named.Method(i).Name() == name {
+			return true
+		}
 	}
 
-	return methods
+	return false
 }
 
 func formatNode(node ast.Node) string {
