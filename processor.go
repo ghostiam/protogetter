@@ -39,33 +39,22 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 		// Skip any increment/decrement to the field.
 		c.filter.AddPos(x.X.Pos())
 
-	case *ast.CallExpr:
-		switch f := x.Fun.(type) {
-		case *ast.SelectorExpr:
-			if !isProtoMessage(c.info, f.X) {
-				for _, arg := range x.Args {
-					// Skip all expressions when the function points to a field, for example somefunc(&t).
-					// Because this is not direct reading, but most likely writing by pointer (for example like sql.Scan).
-					ue, ok := arg.(*ast.UnaryExpr)
-					if !ok || ue.Op != token.AND {
-						continue
-					}
-
-					c.filter.AddPos(ue.X.Pos())
-				}
-
-				return &Result{}, nil
-			}
-
-			c.processInner(x)
-
-		default:
-			if !isProtoMessage(c.info, x.Fun) {
-				return &Result{}, nil
-			}
-
-			return nil, fmt.Errorf("CallExpr: not implemented for type: %s (%s)", reflect.TypeOf(f), formatNode(n))
+	case *ast.UnaryExpr:
+		if x.Op == token.AND {
+			c.filter.AddPos(x.X.Pos())
 		}
+
+	case *ast.CallExpr:
+		f, ok := x.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return &Result{}, nil
+		}
+
+		if !isProtoMessage(c.info, f.X) {
+			return &Result{}, nil
+		}
+
+		c.processInner(x)
 
 	case *ast.SelectorExpr:
 		if !isProtoMessage(c.info, x.X) {
@@ -96,6 +85,15 @@ func (c *processor) processInner(expr ast.Expr) {
 
 	case *ast.BasicLit:
 		c.write(x.Value)
+
+	case *ast.UnaryExpr:
+		if x.Op == token.AND {
+			c.write(formatNode(x))
+			return
+		}
+
+		c.write(x.Op.String())
+		c.processInner(x.X)
 
 	case *ast.SelectorExpr:
 		c.processInner(x.X)
@@ -133,6 +131,21 @@ func (c *processor) processInner(expr ast.Expr) {
 		c.processInner(x.X)
 		c.write(x.Op.String())
 		c.processInner(x.Y)
+
+	case *ast.ParenExpr:
+		c.write("(")
+		c.processInner(x.X)
+		c.write(")")
+
+	case *ast.StarExpr:
+		c.write("*")
+		c.processInner(x.X)
+
+	case *ast.CompositeLit:
+		c.write(formatNode(x))
+
+	case *ast.TypeAssertExpr:
+		c.write(formatNode(x))
 
 	default:
 		c.err = fmt.Errorf("processInner: not implemented for type: %s", reflect.TypeOf(x))

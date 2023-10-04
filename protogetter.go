@@ -39,6 +39,7 @@ func Run(pass *analysis.Pass, mode Mode) []Issue {
 		(*ast.CallExpr)(nil),
 		(*ast.SelectorExpr)(nil),
 		(*ast.IncDecStmt)(nil),
+		(*ast.UnaryExpr)(nil),
 	}
 
 	// Skip generated files.
@@ -75,6 +76,7 @@ func Run(pass *analysis.Pass, mode Mode) []Issue {
 
 func analyse(pass *analysis.Pass, filter *PosFilter, n ast.Node) *Report {
 	// fmt.Printf("\n>>> check: %s\n", formatNode(n))
+	// ast.Print(pass.Fset, n)
 	if filter.IsFiltered(n.Pos()) {
 		// fmt.Printf(">>> filtered\n")
 		return nil

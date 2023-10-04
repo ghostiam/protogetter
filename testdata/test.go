@@ -66,10 +66,24 @@ func testInvalid(t *proto.Test) {
 	for _, v := range t.RepeatedEmbeddeds { // want "avoid direct access to proto field"
 		_ = v
 	}
+
+	fn := func(...interface{}) bool { return false }
+	fn((*proto.Test)(nil).S) // want "avoid direct access to proto field"
+
+	var ptrs *[]proto.Test
+	_ = (*ptrs)[42].RepeatedEmbeddeds    // want "avoid direct access to proto field"
+	_ = (*ptrs)[t.I64].RepeatedEmbeddeds // want "avoid direct access to proto field"
+
+	var anyType interface{}
+	_ = anyType.(*proto.Test).S // want "avoid direct access to proto field"
+
+	t.Embedded.SetS("test")                              // want "avoid direct access to proto field"
+	t.Embedded.SetMap(map[string]string{"test": "test"}) // want "avoid direct access to proto field"
 }
 
 func testValid(t *proto.Test) {
 	func(...interface{}) {}(t.GetB(), t.GetD())
+	func(...interface{}) {}(&t.B, &t.D)
 
 	_, t.T = true, true
 	_, t.T, _ = true, true, false
@@ -131,4 +145,6 @@ func testValid(t *proto.Test) {
 
 	ch := make(chan string)
 	ch <- t.GetS()
+
+	t.Equal(&proto.Test{S: "test", I64: 42})
 }
