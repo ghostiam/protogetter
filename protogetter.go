@@ -20,7 +20,7 @@ const (
 	GolangciLintMode
 )
 
-const msgFormat = "avoid direct access to proto field %q use %q"
+const msgFormat = "avoid direct access to proto field %s, use %s instead"
 
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
