@@ -2,10 +2,10 @@ package protogetter
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
+	"go/types"
 	"log"
 	"strings"
 
@@ -34,138 +34,83 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 func Run(pass *analysis.Pass, mode Mode) []Issue {
-	nodeTypes := []ast.Node{
-		(*ast.AssignStmt)(nil),
-		(*ast.CallExpr)(nil),
-		(*ast.SelectorExpr)(nil),
-		(*ast.IncDecStmt)(nil),
-		(*ast.UnaryExpr)(nil),
-	}
-
 	// Skip generated files.
 	var files []*ast.File
 	for _, f := range pass.Files {
 		if !isGeneratedFile(f) {
 			files = append(files, f)
-
-			// ast.Print(pass.Fset, f)
 		}
 	}
-
-	ins := inspector.New(files)
+	insp := inspector.New(files)
 
 	var issues []Issue
 
-	filter := NewPosFilter()
-	ins.Preorder(nodeTypes, func(node ast.Node) {
-		report := analyse(pass, filter, node)
+	nodeTypes := []ast.Node{
+		(*ast.AssignStmt)(nil),
+		(*ast.IncDecStmt)(nil),
+		(*ast.UnaryExpr)(nil),
+		(*ast.SelectorExpr)(nil),
+	}
+	insp.Nodes(nodeTypes, func(node ast.Node, push bool) (dontStop bool) {
+		if !push {
+			return false
+		}
+
+		switch n := node.(type) {
+		case *ast.AssignStmt:
+			for _, l := range n.Lhs {
+				if _, ok := l.(*ast.SelectorExpr); ok {
+					return false // t.Embedded.Embedded.S = "1"
+				}
+			}
+			return true // _ = t.Embedded.Embedded
+
+		case *ast.IncDecStmt:
+			return false // t.I32++
+
+		case *ast.UnaryExpr:
+			return n.Op != token.AND // &t.S
+		}
+
+		report := analyzeSelectorExpr(pass, node.(*ast.SelectorExpr))
 		if report == nil {
-			return
+			return true
 		}
 
 		switch mode {
 		case StandaloneMode:
-			pass.Report(report.ToDiagReport())
+			pass.Report(report.ToAnalysisDiagnostic())
 		case GolangciLintMode:
 			issues = append(issues, report.ToIssue(pass.Fset))
 		}
+		return true
 	})
 
 	return issues
 }
 
-func analyse(pass *analysis.Pass, filter *PosFilter, n ast.Node) *Report {
-	// fmt.Printf("\n>>> check: %s\n", formatNode(n))
-	// ast.Print(pass.Fset, n)
-	if filter.IsFiltered(n.Pos()) {
-		// fmt.Printf(">>> filtered\n")
+func analyzeSelectorExpr(pass *analysis.Pass, se *ast.SelectorExpr) *Report {
+	if !isProtoMessage(pass.TypesInfo, se.X) {
 		return nil
 	}
 
-	result, err := Process(pass.TypesInfo, filter, n)
-	if err != nil {
-		pass.Report(analysis.Diagnostic{
-			Pos:     n.Pos(),
-			End:     n.End(),
-			Message: fmt.Sprintf("error: %v", err),
-		})
-
+	if se.Sel == nil || strings.HasPrefix(se.Sel.Name, "Get") {
 		return nil
 	}
-
-	// If existing in filter, skip it.
-	if filter.IsFiltered(n.Pos()) {
-		return nil
-	}
-
-	if result.Skipped() {
-		return nil
-	}
-
-	// If the expression has already been replaced, skip it.
-	if filter.IsAlreadyReplaced(pass.Fset, n.Pos(), n.End()) {
-		return nil
-	}
-	// Add the expression to the filter.
-	filter.AddAlreadyReplaced(pass.Fset, n.Pos(), n.End())
-
-	return &Report{
-		node:   n,
-		result: result,
-	}
-}
-
-// Issue is used to integrate with golangci-lint's inline auto fix.
-type Issue struct {
-	Pos       token.Position
-	Message   string
-	InlineFix InlineFix
-}
-
-type InlineFix struct {
-	StartCol  int // zero-based
-	Length    int
-	NewString string
-}
-
-type Report struct {
-	node   ast.Node
-	result *Result
-}
-
-func (r *Report) ToDiagReport() analysis.Diagnostic {
-	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
-
-	return analysis.Diagnostic{
-		Pos:     r.node.Pos(),
-		End:     r.node.End(),
-		Message: msg,
-		SuggestedFixes: []analysis.SuggestedFix{
-			{
-				Message: msg,
-				TextEdits: []analysis.TextEdit{
-					{
-						Pos:     r.node.Pos(),
-						End:     r.node.End(),
-						NewText: []byte(r.result.To),
-					},
-				},
+	if methodExists(pass.TypesInfo, se.X, "Get"+se.Sel.Name) {
+		return &Report{
+			Range: se,
+			From:  formatNode(pass.Fset, se),
+			To:    formatNode(pass.Fset, se.X) + ".Get" + se.Sel.Name + "()",
+			SelectorEdit: Edit{
+				Range: se.Sel,
+				From:  se.Sel.Name,
+				To:    "Get" + se.Sel.Name + "()",
 			},
-		},
+		}
 	}
-}
 
-func (r *Report) ToIssue(fset *token.FileSet) Issue {
-	msg := fmt.Sprintf(msgFormat, r.result.From, r.result.To)
-	return Issue{
-		Pos:     fset.Position(r.node.Pos()),
-		Message: msg,
-		InlineFix: InlineFix{
-			StartCol:  fset.Position(r.node.Pos()).Column - 1,
-			Length:    len(r.result.From),
-			NewString: r.result.To,
-		},
-	}
+	return nil
 }
 
 func isGeneratedFile(f *ast.File) bool {
@@ -178,10 +123,65 @@ func isGeneratedFile(f *ast.File) bool {
 	return false
 }
 
-func formatNode(node ast.Node) string {
+func isProtoMessage(info *types.Info, expr ast.Expr) bool {
+	// First, we are checking for the presence of the ProtoReflect method which is currently being generated
+	// and corresponds to v2 version.
+	// https://pkg.go.dev/google.golang.org/protobuf@v1.31.0/proto#Message
+	const protoV2Method = "ProtoReflect"
+	ok := methodExists(info, expr, protoV2Method)
+	if ok {
+		return true
+	}
+
+	// Afterwards, we are checking the ProtoMessage method. All the structures that implement the proto.Message interface
+	// have a ProtoMessage method and are proto-structures. This interface has been generated since version 1.0.0 and
+	// continues to exist for compatibility.
+	// https://pkg.go.dev/github.com/golang/protobuf/proto?utm_source=godoc#Message
+	const protoV1Method = "ProtoMessage"
+	ok = methodExists(info, expr, protoV1Method)
+	if ok {
+		// Since there is a protoc-gen-gogo generator that implements the proto.Message interface, but may not generate
+		// getters or generate from without checking for nil, so even if getters exist, we skip them.
+		const protocGenGoGoMethod = "MarshalToSizedBuffer"
+		return !methodExists(info, expr, protocGenGoGoMethod)
+	}
+
+	return false
+}
+
+func methodExists(info *types.Info, x ast.Expr, name string) bool {
+	if info == nil {
+		return false
+	}
+
+	t := info.TypeOf(x)
+	if t == nil {
+		return false
+	}
+
+	ptr, ok := t.Underlying().(*types.Pointer)
+	if ok {
+		t = ptr.Elem()
+	}
+
+	named, ok := t.(*types.Named)
+	if !ok {
+		return false
+	}
+
+	for i := 0; i < named.NumMethods(); i++ {
+		if named.Method(i).Name() == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func formatNode(fset *token.FileSet, node ast.Node) string {
 	buf := new(bytes.Buffer)
-	if err := format.Node(buf, token.NewFileSet(), node); err != nil {
-		log.Printf("Error formatting expression: %v", err)
+	if err := format.Node(buf, fset, node); err != nil {
+		log.Printf("Error formatting expression: %v\n", err)
 		return ""
 	}
 

@@ -25,33 +25,33 @@ func testInvalid(t *proto.Test) {
 	_ = t.GetB()                                                  // want `avoid direct access to proto field t\.B, use t\.GetB\(\) instead`
 	_ = t.GetS()                                                  // want `avoid direct access to proto field t\.S, use t\.GetS\(\) instead`
 	_ = t.GetEmbedded()                                           // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
-	_ = t.GetEmbedded().GetS()                                    // want `avoid direct access to proto field t\.Embedded\.S, use t\.GetEmbedded\(\)\.GetS\(\) instead`
+	_ = t.GetEmbedded().GetS()                                    // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead` `avoid direct access to proto field t\.Embedded\.S, use t\.Embedded\.GetS\(\) instead`
 	_ = t.GetEmbedded().GetS()                                    // want `avoid direct access to proto field t\.GetEmbedded\(\)\.S, use t\.GetEmbedded\(\)\.GetS\(\) instead`
-	_ = t.GetEmbedded().GetEmbedded()                             // want `avoid direct access to proto field t\.Embedded\.Embedded, use t\.GetEmbedded\(\)\.GetEmbedded\(\) instead`
+	_ = t.GetEmbedded().GetEmbedded()                             // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead` `avoid direct access to proto field t\.Embedded\.Embedded, use t\.Embedded\.GetEmbedded\(\) instead`
 	_ = t.GetEmbedded().GetEmbedded()                             // want `avoid direct access to proto field t\.GetEmbedded\(\)\.Embedded, use t\.GetEmbedded\(\)\.GetEmbedded\(\) instead`
-	_ = t.GetEmbedded().GetEmbedded().GetS()                      // want `avoid direct access to proto field t\.Embedded\.Embedded\.S, use t\.GetEmbedded\(\)\.GetEmbedded\(\).GetS\(\) instead`
+	_ = t.GetEmbedded().GetEmbedded().GetS()                      // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead` `avoid direct access to proto field t\.Embedded\.Embedded, use t\.Embedded\.GetEmbedded\(\) instead` `avoid direct access to proto field t\.Embedded\.Embedded\.S, use t\.Embedded\.Embedded.GetS\(\) instead`
 	_ = t.GetEmbedded().GetEmbedded().GetS()                      // want `avoid direct access to proto field t\.GetEmbedded\(\)\.GetEmbedded\(\)\.S, use t\.GetEmbedded\(\)\.GetEmbedded\(\)\.GetS\(\) instead`
 	_ = t.GetRepeatedEmbeddeds()                                  // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead`
 	_ = t.GetRepeatedEmbeddeds()[0]                               // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead`
-	_ = t.GetRepeatedEmbeddeds()[0].GetS()                        // want `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.S, use t\.GetRepeatedEmbeddeds\(\)\[0\]\.GetS\(\) instead`
+	_ = t.GetRepeatedEmbeddeds()[0].GetS()                        // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.S, use t\.RepeatedEmbeddeds\[0\]\.GetS\(\) instead`
 	_ = t.GetRepeatedEmbeddeds()[0].GetS()                        // want `avoid direct access to proto field t\.GetRepeatedEmbeddeds\(\)\[0\]\.S, use t\.GetRepeatedEmbeddeds\(\)\[0\]\.GetS\(\) instead`
-	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()                 // want `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.Embedded, use t\.GetRepeatedEmbeddeds\(\)\[0\]\.GetEmbedded\(\) instead`
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()                 // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.Embedded, use t\.RepeatedEmbeddeds\[0\]\.GetEmbedded\(\) instead`
 	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded()                 // want `avoid direct access to proto field t\.GetRepeatedEmbeddeds\(\)\[0\]\.Embedded, use t\.GetRepeatedEmbeddeds\(\)\[0\]\.GetEmbedded\(\) instead`
-	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()          // want `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.Embedded\.S, use t\.GetRepeatedEmbeddeds\(\)\[0\].GetEmbedded\(\).GetS\(\) instead`
+	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()          // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.Embedded, use t\.RepeatedEmbeddeds\[0\].GetEmbedded\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[0\]\.Embedded\.S, use t\.RepeatedEmbeddeds\[0\].Embedded.GetS\(\) instead`
 	_ = t.GetRepeatedEmbeddeds()[0].GetEmbedded().GetS()          // want `avoid direct access to proto field t\.GetRepeatedEmbeddeds\(\)\[0\].GetEmbedded\(\).S, use t\.GetRepeatedEmbeddeds\(\)\[0\].GetEmbedded\(\).GetS\(\) instead`
-	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want `avoid direct access to proto field t\.RepeatedEmbeddeds\[t.I64\]\.Embedded\.S, use t\.GetRepeatedEmbeddeds\(\)\[t\.GetI64\(\)\].GetEmbedded\(\).GetS\(\) instead`
-	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want `avoid direct access to proto field t\.GetRepeatedEmbeddeds\(\)\[t\.I64\]\.GetEmbedded\(\)\.S, use t\.GetRepeatedEmbeddeds\(\)\[t\.GetI64\(\)\]\.GetEmbedded\(\).GetS\(\) instead`
+	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[t\.I64\].Embedded, use t\.RepeatedEmbeddeds\[t\.I64\].GetEmbedded\(\) instead` `avoid direct access to proto field t\.RepeatedEmbeddeds\[t.I64\]\.Embedded\.S, use t\.RepeatedEmbeddeds\[t.I64\]\.Embedded\.GetS\(\) instead` `avoid direct access to proto field t\.I64, use t\.GetI64\(\) instead`
+	_ = t.GetRepeatedEmbeddeds()[t.GetI64()].GetEmbedded().GetS() // want `avoid direct access to proto field t\.GetRepeatedEmbeddeds\(\)\[t\.I64\]\.GetEmbedded\(\)\.S, use t\.GetRepeatedEmbeddeds\(\)\[t\.I64\]\.GetEmbedded\(\).GetS\(\) instead` `avoid direct access to proto field t\.I64, use t\.GetI64\(\) instead`
 
 	var many []*proto.Test
 	manyIndex := 42
 
 	_ = many[0].GetT()                             // want `avoid direct access to proto field many\[0\]\.T, use many\[0\]\.GetT\(\) instead`
-	_ = many[1].GetEmbedded().GetS()               // want `avoid direct access to proto field many\[1\]\.Embedded\.S, use many\[1\]\.GetEmbedded\(\)\.GetS\(\) instead`
+	_ = many[1].GetEmbedded().GetS()               // want `avoid direct access to proto field many\[1\]\.Embedded, use many\[1\]\.GetEmbedded\(\) instead` `avoid direct access to proto field many\[1\]\.Embedded\.S, use many\[1\]\.Embedded\.GetS\(\) instead`
 	_ = many[2].GetEmbedded().GetS()               // want `avoid direct access to proto field many\[2\]\.GetEmbedded\(\)\.S, use many\[2\].GetEmbedded\(\)\.GetS\(\) instead`
-	_ = many[3].GetEmbedded().GetEmbedded().GetS() // want `avoid direct access to proto field many\[3\]\.Embedded\.Embedded\.S, use many\[3\].GetEmbedded\(\)\.GetEmbedded\(\)\.GetS\(\) instead`
+	_ = many[3].GetEmbedded().GetEmbedded().GetS() // want `avoid direct access to proto field many\[3\]\.Embedded, use many\[3\].GetEmbedded\(\) instead` `avoid direct access to proto field many\[3\]\.Embedded\.Embedded, use many\[3\].Embedded\.GetEmbedded\(\)\ instead` `avoid direct access to proto field many\[3\]\.Embedded\.Embedded\.S, use many\[3\].Embedded\.Embedded\.GetS\(\) instead`
 	_ = many[manyIndex].GetS()                     // want `avoid direct access to proto field many\[manyIndex\]\.S, use many\[manyIndex\]\.GetS\(\) instead`
 
-	test := many[0].GetEmbedded().GetS() == "" || t.GetEmbedded().CustomMethod() == nil || t.GetS() == "" || t.GetEmbedded() == nil // want `avoid direct access to proto field many\[0\]\.Embedded\.S, use many\[0\]\.GetEmbedded\(\).GetS\(\) instead` `avoid direct access to proto field t\.Embedded\.CustomMethod\(\), use t\.GetEmbedded\(\)\.CustomMethod\(\) instead` `avoid direct access to proto field t\.S, use t\.GetS\(\) instead` `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	test := many[0].GetEmbedded().GetS() == "" || t.GetEmbedded().CustomMethod() == nil || t.GetS() == "" || t.GetEmbedded() == nil // want `avoid direct access to proto field many\[0\]\.Embedded, use many\[0\]\.GetEmbedded\(\) instead` `avoid direct access to proto field many\[0\]\.Embedded\.S, use many\[0\]\.Embedded.GetS\(\) instead` `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead` `avoid direct access to proto field t\.S, use t\.GetS\(\) instead` `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
 	_ = test
 
 	other := proto.Other{}
@@ -72,13 +72,13 @@ func testInvalid(t *proto.Test) {
 
 	var ptrs *[]proto.Test
 	_ = (*ptrs)[42].GetRepeatedEmbeddeds()         // want `avoid direct access to proto field \(\*ptrs\)\[42\]\.RepeatedEmbeddeds, use \(\*ptrs\)\[42\].GetRepeatedEmbeddeds\(\) instead`
-	_ = (*ptrs)[t.GetI64()].GetRepeatedEmbeddeds() // want `avoid direct access to proto field \(\*ptrs\)\[t\.I64\]\.RepeatedEmbeddeds, use \(\*ptrs\)\[t\.GetI64\(\)\].GetRepeatedEmbeddeds\(\) instead`
+	_ = (*ptrs)[t.GetI64()].GetRepeatedEmbeddeds() // want `avoid direct access to proto field \(\*ptrs\)\[t\.I64\]\.RepeatedEmbeddeds, use \(\*ptrs\)\[t\.I64\].GetRepeatedEmbeddeds\(\) instead` `avoid direct access to proto field t\.I64, use t\.GetI64\(\) instead`
 
 	var anyType interface{}
 	_ = anyType.(*proto.Test).GetS() // want `avoid direct access to proto field anyType\.\(\*proto\.Test\)\.S, use anyType\.\(\*proto\.Test\)\.GetS\(\) instead`
 
-	t.GetEmbedded().SetS("test")                              // want `avoid direct access to proto field t\.Embedded\.SetS\("test"\), use t\.GetEmbedded\(\)\.SetS\("test"\) instead`
-	t.GetEmbedded().SetMap(map[string]string{"test": "test"}) // want `avoid direct access to proto field t\.Embedded\.SetMap\(map\[string\]string{"test": "test"}\), use t\.GetEmbedded\(\)\.SetMap\(map\[string\]string{"test": "test"}\) instead`
+	t.GetEmbedded().SetS("test")                              // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	t.GetEmbedded().SetMap(map[string]string{"test": "test"}) // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
 }
 
 func testValid(t *proto.Test) {

@@ -8,7 +8,7 @@ import (
 	"github.com/ghostiam/protogetter"
 )
 
-func Test(t *testing.T) {
+func TestProtogetterAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, protogetter.NewAnalyzer())
 }
