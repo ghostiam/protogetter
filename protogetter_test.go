@@ -11,4 +11,6 @@ import (
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, protogetter.NewAnalyzer())
+
+	analysistest.Run(t, testdata, protogetter.NewAnalyzer(), "./proto/...")
 }
