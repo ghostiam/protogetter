@@ -147,4 +147,12 @@ func testValid(t *proto.Test) {
 	ch <- t.GetS()
 
 	t.Equal(&proto.Test{S: "test", I64: 42})
+
+	// issue #4
+	*t.Embedded = proto.Embedded{}
+
+	v := &proto.Test{
+		OptBool: new(bool),
+	}
+	*v.OptBool = true
 }

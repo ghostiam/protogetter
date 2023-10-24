@@ -14,6 +14,9 @@ message Test {
   string s = 9;
   Embedded embedded = 10;
   repeated Embedded repeated_embeddeds = 11;
+
+  // issue #4
+  optional bool opt_bool = 12;
 }
 
 message Embedded {
