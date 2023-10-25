@@ -7,5 +7,9 @@ import (
 )
 
 func main() {
-	singlechecker.Main(protogetter.NewAnalyzer())
+	cfg := &protogetter.Config{
+		Mode: protogetter.StandaloneMode,
+	}
+
+	singlechecker.Main(protogetter.NewAnalyzer(cfg))
 }

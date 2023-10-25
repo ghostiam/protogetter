@@ -9,8 +9,10 @@ import (
 )
 
 func Test(t *testing.T) {
-	testdata := analysistest.TestData()
-	analysistest.RunWithSuggestedFixes(t, testdata, protogetter.NewAnalyzer())
+	cfg := &protogetter.Config{}
 
-	analysistest.Run(t, testdata, protogetter.NewAnalyzer(), "./proto/...")
+	testdata := analysistest.TestData()
+	analysistest.RunWithSuggestedFixes(t, testdata, protogetter.NewAnalyzer(cfg))
+
+	analysistest.Run(t, testdata, protogetter.NewAnalyzer(cfg), "./proto/...")
 }
