@@ -2,7 +2,11 @@ module github.com/ghostiam/protogetter
 
 go 1.19
 
-require golang.org/x/tools v0.12.0
+require (
+	github.com/gobwas/glob v0.2.3
+	github.com/jessevdk/go-flags v1.5.0
+	golang.org/x/tools v0.12.0
+)
 
 require (
 	golang.org/x/mod v0.12.0 // indirect
