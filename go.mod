@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/gobwas/glob v0.2.3
-	github.com/jessevdk/go-flags v1.5.0
 	golang.org/x/tools v0.12.0
 )
 
