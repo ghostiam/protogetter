@@ -17,4 +17,4 @@ protoc:
 		--go_opt paths=source_relative \
 		--go-grpc_out proto \
 		--go-grpc_opt paths=source_relative \
-		proto/test.proto
+		proto/test.proto proto/test_proto2.proto
