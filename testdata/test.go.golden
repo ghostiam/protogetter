@@ -79,6 +79,17 @@ func testInvalid(t *proto.Test) {
 
 	t.GetEmbedded().SetS("test")                              // want `avoid direct access to proto field t\.Embedded\.SetS\("test"\), use t\.GetEmbedded\(\)\.SetS\("test"\) instead`
 	t.GetEmbedded().SetMap(map[string]string{"test": "test"}) // want `avoid direct access to proto field t\.Embedded\.SetMap\(map\[string\]string{"test": "test"}\), use t\.GetEmbedded\(\)\.SetMap\(map\[string\]string{"test": "test"}\) instead`
+
+	// Optional enum
+	switch t.GetOptEnum() { // want `avoid direct access to proto field \*t\.OptEnum, use t\.GetOptEnum\(\) instead`
+	case proto.Test_O_ENUM1:
+	case proto.Test_O_ENUM2:
+	}
+
+	if t.OptEnum != nil && t.GetOptEnum() == proto.Test_O_ENUM1 { // want `avoid direct access to proto field \*t\.OptEnum, use t\.GetOptEnum\(\) instead`
+	}
+
+	_ = t.GetOptEnum() // want `avoid direct access to proto field \*t\.OptEnum, use t\.GetOptEnum\(\) instead`
 }
 
 func testValid(t *proto.Test) {

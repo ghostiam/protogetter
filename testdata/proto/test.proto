@@ -17,6 +17,13 @@ message Test {
 
   // issue #4
   optional bool opt_bool = 12;
+
+  // Optional enum
+  enum OEnum {
+    O_ENUM1 = 0;
+    O_ENUM2 = 1;
+  }
+  optional OEnum opt_enum = 13;
 }
 
 message Embedded {
