@@ -70,6 +70,23 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 
 		c.processInner(x)
 
+	case *ast.StarExpr:
+		f, ok := x.X.(*ast.SelectorExpr)
+		if !ok {
+			return &Result{}, nil
+		}
+
+		if !isProtoMessage(c.info, f.X) {
+			return &Result{}, nil
+		}
+
+		// proto2 generates fields as pointers. Hence, the indirection
+		// must be removed when generating the fix for the case.
+		// The `*` is retained in `c.from`, but excluded from the fix
+		// present in the `c.to`.
+		c.writeFrom("*")
+		c.processInner(x.X)
+
 	default:
 		return nil, fmt.Errorf("not implemented for type: %s (%s)", reflect.TypeOf(x), formatNode(n))
 	}

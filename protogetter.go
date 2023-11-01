@@ -99,6 +99,7 @@ func Run(pass *analysis.Pass, cfg *Config) ([]Issue, error) {
 		(*ast.AssignStmt)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.SelectorExpr)(nil),
+		(*ast.StarExpr)(nil),
 		(*ast.IncDecStmt)(nil),
 		(*ast.UnaryExpr)(nil),
 	}
