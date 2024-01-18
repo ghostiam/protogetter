@@ -90,6 +90,9 @@ func testInvalid(t *proto.Test) {
 	}
 
 	_ = t.GetOptEnum() // want `avoid direct access to proto field \*t\.OptEnum, use t\.GetOptEnum\(\) instead`
+
+	t.RepeatedEmbeddeds = append(t.GetRepeatedEmbeddeds(), t.GetRepeatedEmbeddeds()...) // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead`
+	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, t.GetEmbedded())                  // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
 }
 
 func testValid(t *proto.Test) {
@@ -166,4 +169,8 @@ func testValid(t *proto.Test) {
 		OptBool: new(bool),
 	}
 	*v.OptBool = true
+
+	t.RepeatedEmbeddeds = append(t.GetRepeatedEmbeddeds(), t.GetRepeatedEmbeddeds()...)
+	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, t.GetEmbedded())
+	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, &proto.Embedded{})
 }
