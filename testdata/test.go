@@ -179,6 +179,10 @@ func testValid(t *proto.Test) {
 	t.RepeatedEmbeddeds = append(t.GetRepeatedEmbeddeds(), t.GetRepeatedEmbeddeds()...)
 	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, t.GetEmbedded())
 	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, &proto.Embedded{})
+
+	// issue #12
+	data := make([]byte, 4)
+	_, _ = t.MyMarshal(data[4:])
 }
 
 // stubs

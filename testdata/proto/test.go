@@ -21,3 +21,7 @@ func (x *Embedded) SetS(s string) {
 
 func (x *Embedded) SetMap(_ map[string]string) {
 }
+
+func (x *Test) MyMarshal([]byte) (int, error) {
+	return 0, nil
+}
