@@ -24,6 +24,8 @@ message Test {
     O_ENUM2 = 1;
   }
   optional OEnum opt_enum = 13;
+
+  map<string, string> map = 14;
 }
 
 message Embedded {

@@ -4,8 +4,11 @@
 # Follow https://github.com/golang/go/issues/37054 for more details.
 #
 
+all: protoc vendor
+
 .PHONY: vendor
 vendor:
+	go mod tidy
 	rm -rf src
 	go mod vendor
 	mv vendor src
@@ -17,4 +20,4 @@ protoc:
 		--go_opt paths=source_relative \
 		--go-grpc_out proto \
 		--go-grpc_opt paths=source_relative \
-		proto/test.proto proto/test_proto2.proto
+		proto/*.proto

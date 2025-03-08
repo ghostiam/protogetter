@@ -95,6 +95,11 @@ func testInvalid(t *proto.Test) {
 	t.RepeatedEmbeddeds = append(t.GetRepeatedEmbeddeds(), t.RepeatedEmbeddeds...) // want `avoid direct access to proto field t\.RepeatedEmbeddeds, use t\.GetRepeatedEmbeddeds\(\) instead`
 	t.RepeatedEmbeddeds = append(t.RepeatedEmbeddeds, t.Embedded)                  // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
 
+	_ = t.Map // want `avoid direct access to proto field t\.Map, use t\.GetMap\(\) instead`
+	t.Map = map[string]string{}
+	t.GetEmbedded().SetMap(t.Map) // want `avoid direct access to proto field t\.GetEmbedded\(\)\.SetMap\(t\.Map\), use t\.GetEmbedded\(\).SetMap\(t.GetMap\(\)\) instead`
+	t.GetEmbedded().SetMap(t.GetMap())
+
 	// Issue #10
 	_ = many[slicesIndexFunc(many, func(m *proto.Test) bool {
 		return strings.Contains(strings.ToLower(m.GetS()), "specific value")
