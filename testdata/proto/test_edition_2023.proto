@@ -1,0 +1,10 @@
+edition = "2023";
+
+option go_package = "github.com/ghostiam/protogetter/testdata/proto";
+
+import "google/protobuf/go_features.proto";
+option features.(pb.go).api_level = API_OPAQUE;
+
+message TestEdition2023 {
+  map<string, string> value = 1;
+}

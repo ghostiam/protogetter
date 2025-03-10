@@ -99,6 +99,10 @@ func testInvalid(t *proto.Test) {
 	t.Map = map[string]string{}
 	t.GetEmbedded().SetMap(t.GetMap()) // want `avoid direct access to proto field t\.GetEmbedded\(\)\.SetMap\(t\.Map\), use t\.GetEmbedded\(\).SetMap\(t.GetMap\(\)\) instead`
 	t.GetEmbedded().SetMap(t.GetMap())
+	t.GetEmbedded().SetMap(map[string]string{})
+	// Issue #16
+	t.GetEmbedded().SetMap(make(map[string]string, 5))
+
 
 	// Issue #10
 	_ = many[slicesIndexFunc(many, func(m *proto.Test) bool {
