@@ -31,6 +31,7 @@ message Test {
 message Embedded {
   string s = 1;
   Embedded embedded = 2;
+  optional bool opt_bool = 3;
 }
 
 service Testing {

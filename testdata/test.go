@@ -107,6 +107,18 @@ func testInvalid(t *proto.Test) {
 	_ = many[slicesIndexFunc(many, func(m *proto.Test) bool {
 		return strings.Contains(strings.ToLower(m.GetS()), "specific value")
 	})].GetS()
+
+	// issue #11
+	var optBoolVar *bool
+	optBoolVar = t.Embedded.OptBool // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+	_ = optBoolVar
+
+	type structWithPtrField struct {
+		OptBool *bool
+	}
+	_ = structWithPtrField{
+		OptBool: t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+	}
 }
 
 func testValid(t *proto.Test) {
@@ -195,6 +207,7 @@ func testValid(t *proto.Test) {
 	// issue #11
 	var optBoolVar *bool
 	optBoolVar = t.OptBool
+	optBoolVar = t.GetEmbedded().OptBool
 	_ = optBoolVar
 
 	type structWithPtrField struct {
@@ -202,6 +215,9 @@ func testValid(t *proto.Test) {
 	}
 	_ = structWithPtrField{
 		OptBool: t.OptBool,
+	}
+	_ = structWithPtrField{
+		OptBool: t.GetEmbedded().OptBool,
 	}
 }
 
