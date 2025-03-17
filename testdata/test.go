@@ -191,6 +191,18 @@ func testValid(t *proto.Test) {
 	// issue #12
 	data := make([]byte, 4)
 	_, _ = t.MyMarshal(data[4:])
+
+	// issue #11
+	var optBoolVar *bool
+	optBoolVar = t.OptBool
+	_ = optBoolVar
+
+	type structWithPtrField struct {
+		OptBool *bool
+	}
+	_ = structWithPtrField{
+		OptBool: t.OptBool,
+	}
 }
 
 // stubs

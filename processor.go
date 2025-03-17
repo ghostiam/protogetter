@@ -33,11 +33,18 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 	switch x := n.(type) {
 	case *ast.AssignStmt:
 		// Skip any assignment to the field.
-		for _, s := range x.Lhs {
+		for i, s := range x.Lhs {
 			c.filter.AddPos(s.Pos())
 
 			if se, ok := s.(*ast.StarExpr); ok {
 				c.filter.AddPos(se.X.Pos())
+			}
+
+			if len(x.Rhs) > i {
+				value := x.Rhs[i]
+				if hasPointerKeyWithoutPointerGetter(c.info, s, value) {
+					c.filter.AddPos(value.Pos())
+				}
 			}
 		}
 
@@ -50,6 +57,11 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 			// Skip all expressions when the field is used as a pointer.
 			// Because this is not direct reading, but most likely writing by pointer (for example like sql.Scan).
 			c.filter.AddPos(x.X.Pos())
+		}
+
+	case *ast.KeyValueExpr:
+		if hasPointerKeyWithoutPointerGetter(c.info, x.Key, x.Value) {
+			c.filter.AddPos(x.Value.Pos())
 		}
 
 	case *ast.CallExpr:
@@ -348,4 +360,23 @@ func getterResultHasPointer(info *types.Info, x ast.Expr, name string) (hasPoint
 	}
 
 	return false, false
+}
+
+func hasPointerKeyWithoutPointerGetter(info *types.Info, key ast.Expr, value ast.Expr) bool {
+	_, isPtr := info.TypeOf(key).(*types.Pointer)
+	if !isPtr {
+		return false
+	}
+
+	se, ok := value.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	getterHasPointer, ok := getterResultHasPointer(info, se.X, se.Sel.Name)
+	if !ok {
+		return false
+	}
+
+	return !getterHasPointer
 }
