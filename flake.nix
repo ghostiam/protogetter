@@ -30,6 +30,8 @@
         ];
 
         defaultShellHook = ''
+          export SHELL="${pkgs.bashInteractive}/bin/bash"
+
           export FLAKE_ROOT=$(nix flake metadata | grep 'Resolved URL' | awk '{print $3}' | awk -F'://' '{print $2}')
           export HISTFILE="$FLAKE_ROOT/.nix_bash_history"
 
@@ -52,6 +54,8 @@
             shellHook = pkgs.lib.concatLines [
               defaultShellHook
               ''
+                cd "$FLAKE_ROOT"
+
                 echo "Replace GOPATH"
                 xmlstarlet ed -L -u '//project/component[@name="GOROOT"]/@url' -v 'file://${pkgs.go}/share/go' .idea/workspace.xml
 
