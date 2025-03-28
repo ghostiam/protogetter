@@ -119,6 +119,10 @@ func testInvalid(t *proto.Test) {
 	_ = structWithPtrField{
 		OptBool: t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
 	}
+
+	optionalArgsFunc(t.Embedded.OptBool)             // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+	optionalArgs2Func(t.OptBool, t.Embedded.OptBool) // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+	messageArgsFunc(t.Embedded)                      // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
 }
 
 func testValid(t *proto.Test) {
@@ -219,9 +223,18 @@ func testValid(t *proto.Test) {
 	_ = structWithPtrField{
 		OptBool: t.GetEmbedded().OptBool,
 	}
+
+	optionalArgsFunc(t.GetEmbedded().OptBool)
+	optionalArgs2Func(t.OptBool, t.GetEmbedded().OptBool)
+	messageArgsFunc(t.GetEmbedded())
 }
 
 // stubs
 func slicesIndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	return 0
 }
+
+func optionalArgsFunc(*bool)       {}
+func optionalArgs2Func(a, b *bool) {}
+
+func messageArgsFunc(*proto.Embedded) {}

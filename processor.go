@@ -77,16 +77,64 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 			}
 		}
 
-		f, ok := x.Fun.(*ast.SelectorExpr)
-		if !ok {
+		switch fun := x.Fun.(type) {
+		case *ast.Ident:
+			// Allow passing optional parameters to the function without getter.
+
+			if len(x.Args) == 0 {
+				return &Result{}, nil
+			}
+
+			if fun.Obj == nil || fun.Obj.Kind != ast.Fun {
+				return &Result{}, nil
+			}
+
+			decl, ok := fun.Obj.Decl.(*ast.FuncDecl)
+			if !ok || decl.Type == nil || decl.Type.Params == nil {
+				return &Result{}, nil
+			}
+
+			paramTypes := make([]ast.Expr, 0, len(x.Args))
+			for _, p := range decl.Type.Params.List {
+				count := max(len(p.Names), 1)
+				for range count {
+					paramTypes = append(paramTypes, p.Type)
+				}
+			}
+
+			for i, arg := range x.Args {
+				a, ok := arg.(*ast.SelectorExpr)
+				if !ok {
+					continue
+				}
+
+				_, isParamPointer := paramTypes[i].(*ast.StarExpr)
+				if !isParamPointer {
+					return &Result{}, nil
+				}
+
+				if !isProtoMessage(c.info, a.X) {
+					continue
+				}
+
+				hasPointer, ok := getterResultHasPointer(c.info, a.X, a.Sel.Name)
+				if !ok || hasPointer {
+					continue
+				}
+
+				c.filter.AddPos(a.Sel.Pos())
+			}
+
+		case *ast.SelectorExpr:
+			if !isProtoMessage(c.info, fun.X) {
+				return &Result{}, nil
+			}
+
+			c.processInner(x)
+
+		default:
 			return &Result{}, nil
 		}
-
-		if !isProtoMessage(c.info, f.X) {
-			return &Result{}, nil
-		}
-
-		c.processInner(x)
 
 	case *ast.SelectorExpr:
 		if !isProtoMessage(c.info, x.X) {
