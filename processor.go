@@ -102,6 +102,10 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 				}
 			}
 
+			if len(paramTypes) != len(x.Args) {
+				return &Result{}, nil
+			}
+
 			for i, arg := range x.Args {
 				a, ok := arg.(*ast.SelectorExpr)
 				if !ok {
