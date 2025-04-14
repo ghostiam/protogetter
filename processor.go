@@ -90,39 +90,31 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 			}
 
 			decl, ok := fun.Obj.Decl.(*ast.FuncDecl)
-			if !ok || decl.Type == nil || decl.Type.Params == nil {
+			if !ok || decl.Type == nil {
 				return &Result{}, nil
 			}
 
-			paramTypes := make([]ast.Expr, 0, len(x.Args))
-			for _, p := range decl.Type.Params.List {
-				count := max(len(p.Names), 1)
-				for range count {
-					paramTypes = append(paramTypes, p.Type)
-				}
-			}
-
-			if len(paramTypes) != len(x.Args) {
-				return &Result{}, nil
-			}
-
-			for i, arg := range x.Args {
+			for _, arg := range x.Args {
 				a, ok := arg.(*ast.SelectorExpr)
 				if !ok {
 					continue
-				}
-
-				_, isParamPointer := paramTypes[i].(*ast.StarExpr)
-				if !isParamPointer {
-					return &Result{}, nil
 				}
 
 				if !isProtoMessage(c.info, a.X) {
 					continue
 				}
 
-				hasPointer, ok := getterResultHasPointer(c.info, a.X, a.Sel.Name)
-				if !ok || hasPointer {
+				// If the argument is not a pointer,
+				// then we should not skip the check for using the getter.
+				_, isPtrArg := c.info.TypeOf(a).Underlying().(*types.Pointer)
+				if !isPtrArg {
+					continue
+				}
+
+				// If the getter also have a pointer,
+				// then we should not skip the check for using the getter.
+				getterHasPointer, _ := getterResultHasPointer(c.info, a.X, a.Sel.Name)
+				if getterHasPointer {
 					continue
 				}
 

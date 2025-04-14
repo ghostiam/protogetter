@@ -123,6 +123,35 @@ func testInvalid(t *proto.Test) {
 	optionalArgsFunc(t.Embedded.OptBool)             // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
 	optionalArgs2Func(t.OptBool, t.Embedded.OptBool) // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
 	messageArgsFunc(t.Embedded)                      // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	nonOptionalArgsFunc(t.T)                         // want `avoid direct access to proto field t\.T, use t\.GetT\(\) instead`
+	optionalVariadicArgsFunc(
+		t.OptBool,
+		t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+	)
+	nonOptionalVariadicArgsFunc(
+		t.T,                 // want `avoid direct access to proto field t\.T, use t\.GetT\(\) instead`
+		*t.Embedded.OptBool, // want `avoid direct access to proto field \*t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.GetOptBool\(\) instead`
+		false,
+		true,
+	)
+	variadicArgsAnyFunc(
+		t.OptBool,
+		t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+		t.T,                // want `avoid direct access to proto field t\.T, use t\.GetT\(\) instead`
+		t.Embedded,         // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	)
+	variadicArgsInterfaceFunc(
+		t.OptBool,
+		t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+		t.T,                // want `avoid direct access to proto field t\.T, use t\.GetT\(\) instead`
+		t.Embedded,         // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	)
+	variadicArgsExtInterfaceFunc(
+		t.OptBool,
+		t.Embedded.OptBool, // want `avoid direct access to proto field t\.Embedded\.OptBool, use t\.GetEmbedded\(\)\.OptBool instead`
+		t.T,                // want `avoid direct access to proto field t\.T, use t\.GetT\(\) instead`
+		t.Embedded,         // want `avoid direct access to proto field t\.Embedded, use t\.GetEmbedded\(\) instead`
+	)
 }
 
 func testValid(t *proto.Test) {
@@ -227,6 +256,12 @@ func testValid(t *proto.Test) {
 	optionalArgsFunc(t.GetEmbedded().OptBool)
 	optionalArgs2Func(t.OptBool, t.GetEmbedded().OptBool)
 	messageArgsFunc(t.GetEmbedded())
+	nonOptionalArgsFunc(t.GetT())
+	optionalVariadicArgsFunc(t.OptBool, t.GetEmbedded().OptBool)
+	nonOptionalVariadicArgsFunc(t.GetT(), t.GetEmbedded().GetOptBool(), false, true)
+	variadicArgsAnyFunc(t.OptBool, t.GetEmbedded().OptBool, t.GetT(), t.GetEmbedded())
+	variadicArgsInterfaceFunc(t.OptBool, t.GetEmbedded().OptBool, t.GetT(), t.GetEmbedded())
+	variadicArgsExtInterfaceFunc(t.OptBool, t.GetEmbedded().OptBool, t.GetT(), t.GetEmbedded())
 }
 
 // stubs
@@ -234,7 +269,16 @@ func slicesIndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	return 0
 }
 
-func optionalArgsFunc(*bool)       {}
-func optionalArgs2Func(a, b *bool) {}
+func optionalArgsFunc(*bool)                   {}
+func nonOptionalArgsFunc(bool)                 {}
+func optionalArgs2Func(a, b *bool)             {}
+func optionalVariadicArgsFunc(...*bool)        {}
+func nonOptionalVariadicArgsFunc(...bool)      {}
+func variadicArgsAnyFunc(...any)               {}
+func variadicArgsInterfaceFunc(...interface{}) {}
+
+type ExtInterface interface{}
+
+func variadicArgsExtInterfaceFunc(...ExtInterface) {}
 
 func messageArgsFunc(*proto.Embedded) {}
