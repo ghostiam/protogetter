@@ -1,4 +1,4 @@
-package proto
+package testdata
 
 import (
 	"net/http"
