@@ -236,11 +236,12 @@ func (c *processor) processInner(expr ast.Expr) {
 		c.processInner(x.X)
 		c.write(".")
 
-		// Skip if the field is filtered.
-		isFiltered := c.filter.IsFiltered(x.Sel.Pos())
-
 		// If getter exists, use it.
-		if methodIsExists(c.info, x.X, "Get"+x.Sel.Name) && !isFiltered {
+		if methodIsExists(c.info, x.X, "Get"+x.Sel.Name) &&
+			// Skip if the field is filtered.
+			!c.filter.IsFiltered(x.Sel.Pos()) &&
+			// Check if the field is a proto-message.
+			isProtoMessage(c.info, x.X) {
 			c.writeFrom(x.Sel.Name)
 			c.writeTo("Get" + x.Sel.Name + "()")
 			return
