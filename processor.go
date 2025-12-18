@@ -201,6 +201,28 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 
 		c.filter.AddPos(x.X.Pos())
 
+	case *ast.DeclStmt:
+		decl, ok := x.Decl.(*ast.GenDecl)
+		if !ok {
+			return &Result{}, nil
+		}
+
+		for _, spec := range decl.Specs {
+			vSpec, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+
+			_, ok = vSpec.Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+
+			for _, ve := range vSpec.Values {
+				c.filter.AddPos(ve.Pos())
+			}
+		}
+
 	default:
 		return nil, fmt.Errorf("not implemented for type: %s (%s)", reflect.TypeOf(x), formatNode(n))
 	}
