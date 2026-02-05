@@ -1,0 +1,21 @@
+package testdata
+
+import (
+	"github.com/ghostiam/protogetter/testdata/proto"
+)
+
+func testIssue24_optionalFieldPointer(t *proto.Test) *bool {
+	return t.OptBool
+}
+
+func testIssue24_addressOfScalarField(t *proto.Test) *string {
+	return &t.S
+}
+
+func testIssue24_scalarFieldValue(t *proto.Test) string {
+	return t.S // want `avoid direct access to proto field t\.S, use t\.GetS\(\) instead`
+}
+
+func testIssue24_mixedResults(t *proto.Test) (*bool, string, *string) {
+	return t.OptBool, t.S, &t.S // want `avoid direct access to proto field t\.S, use t\.GetS\(\) instead`
+}

@@ -94,40 +94,10 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 				return &Result{}, nil
 			}
 
-			for _, arg := range x.Args {
-				a, ok := arg.(*ast.SelectorExpr)
-				if !ok {
-					continue
-				}
-
-				if !isProtoMessage(c.info, a.X) {
-					continue
-				}
-
-				if !isOptionalProto(c.info, a) {
-					continue
-				}
-
-				c.filter.AddPos(a.Sel.Pos())
-			}
+			c.filterOptionalProtoSelectorExpr(x.Args)
 
 		case *ast.SelectorExpr:
-			for _, arg := range x.Args {
-				a, ok := arg.(*ast.SelectorExpr)
-				if !ok {
-					continue
-				}
-
-				if !isProtoMessage(c.info, a.X) {
-					continue
-				}
-
-				if !isOptionalProto(c.info, a) {
-					continue
-				}
-
-				c.filter.AddPos(a.Sel.Pos())
-			}
+			c.filterOptionalProtoSelectorExpr(x.Args)
 
 			if !isProtoMessage(c.info, fun.X) {
 				return &Result{}, nil
@@ -230,6 +200,9 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 			}
 		}
 
+	case *ast.ReturnStmt:
+		c.filterOptionalProtoSelectorExpr(x.Results)
+
 	default:
 		return nil, fmt.Errorf("not implemented for type: %s (%s)", reflect.TypeOf(x), formatNode(n))
 	}
@@ -242,6 +215,25 @@ func (c *processor) process(n ast.Node) (*Result, error) {
 		From: c.from.String(),
 		To:   c.to.String(),
 	}, nil
+}
+
+func (c *processor) filterOptionalProtoSelectorExpr(args []ast.Expr) {
+	for _, arg := range args {
+		a, ok := arg.(*ast.SelectorExpr)
+		if !ok {
+			continue
+		}
+
+		if !isProtoMessage(c.info, a.X) {
+			continue
+		}
+
+		if !isOptionalProto(c.info, a) {
+			continue
+		}
+
+		c.filter.AddPos(a.Sel.Pos())
+	}
 }
 
 func (c *processor) processInner(expr ast.Expr) {
